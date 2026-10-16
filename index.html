@@ -20,18 +20,6 @@
   --up: #b42318; --down: #006300; --hover: rgba(20,19,15,0.03); --sel: rgba(42,120,214,0.08);
   --glow-a: rgba(27,175,122,.10); --glow-b: rgba(235,150,52,.08);
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
-    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.09);
-    --shadow: 0 1px 2px rgba(0,0,0,.3);
-    --s1: #3987e5; --s1-tint: rgba(57,135,229,.16); --s2: #199e70; --s2-tint: rgba(25,158,112,.16); --s2-ink: #2fc48e;
-    --bar: #3987e5; --track: #2c2c2a;
-    --up: #e66767; --down: #0ca30c; --hover: rgba(255,255,255,0.04); --sel: rgba(57,135,229,0.14);
-    --glow-a: rgba(25,158,112,.08); --glow-b: rgba(235,150,52,.05);
-  }
-}
 :root[data-theme="dark"] {
   color-scheme: dark;
   --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
@@ -193,12 +181,42 @@ tfoot td { font-weight: 700; border-bottom: 0; }
 .banner a { color: var(--s1); font-weight: 600; }
 .banner.info { border-left-color: var(--s1); }
 .ttable th, .ttable td { padding: 8px 6px; }
+.hero-acts { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
+.overview { display: grid; grid-template-columns: repeat(6, 1fr); padding: 0; margin: 28px 0 0; }
+.overview > div { padding: 18px 20px; }
+.overview > div + div { border-left: 1px solid var(--grid); }
+.overview .l { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.overview .v { font-size: 22px; font-weight: 800; margin-top: 4px; white-space: nowrap; }
+.overview .s { color: var(--ink-2); font-size: 12px; }
+@media (max-width: 1000px) { .overview { grid-template-columns: repeat(3, 1fr); } .overview > div:nth-child(4) { border-left: 0; } .overview > div:nth-child(n+4) { border-top: 1px solid var(--grid); } }
+@media (max-width: 560px) { .overview { grid-template-columns: repeat(2, 1fr); } .overview > div { border-left: 0 !important; border-top: 1px solid var(--grid); } }
+.cards { max-width: none; margin-top: 28px; }
+.topu { margin: 14px 0 0; border-top: 1px solid var(--grid); padding-top: 12px; }
+.topu .l { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.tu { display: grid; grid-template-columns: minmax(0, 1.3fr) 1fr auto; gap: 10px; align-items: center; font-size: 13px; padding: 3px 0; color: var(--ink); }
+.tu .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.tu .tr { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; }
+.tu .tr span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.tu .r { color: var(--ink-2); font-variant-numeric: tabular-nums; min-width: 64px; text-align: right; }
+.controls2 { display: flex; gap: 8px; flex-wrap: wrap; }
+.controls2 input { font: inherit; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--ink); min-width: 200px; }
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .hero-acts, .acts, .switch, .btn.small, #rangeSel, #lrange, #daySel, .controls2, .toast, .topline, .banner a { display: none !important; }
+  .wrap { max-width: none; padding: 0; }
+  .hero-head { padding-top: 0; }
+  .cards { margin-top: 16px; }
+  .panel, .syscard, .kpi { box-shadow: none !important; break-inside: avoid; }
+  .tbl { max-height: none !important; overflow: visible !important; }
+  .syscard:hover { transform: none; }
+  footer { margin-top: 16px; }
+}
 </style>
 </head>
 <body>
 <div class="topline"></div>
 <div class="wrap" id="app"><div class="empty">Loading…</div></div>
-<button class="themebtn" id="theme" title="Switch light / dark">Light / Dark</button>
 
 <script>
 const ICONS = {
@@ -218,16 +236,6 @@ const $ = s => document.querySelector(s);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const state = { data: null, range: 90, day: null, user: null, sort: { key: 'bytes', dir: -1 } };
-
-/* ---------- theme ---------- */
-try { const t = localStorage.getItem('nas-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
-$('#theme').onclick = () => {
-  const r = document.documentElement;
-  const dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-  r.dataset.theme = dark ? 'light' : 'dark';
-  try { localStorage.setItem('nas-theme', r.dataset.theme); } catch (e) {}
-  render();
-};
 
 /* ---------- formatting ---------- */
 function fmtBytes(b, digits = 1) {
@@ -577,22 +585,25 @@ function banner(n) {
 
 function renderLanding() {
   const d = state.data;
+  const stats = d.nas.map(nasStats);
   const cards = d.nas.map((n, i) => {
-    const a = ACCENTS[i % ACCENTS.length], st = nasStats(n);
+    const a = ACCENTS[i % ACCENTS.length], st = stats[i];
     const style = `--accent:var(${a.c});--tint:var(${a.tint});--accent-ink:var(${a.ink})`;
     const body = st ? (() => {
       const s = statusOf(st.pct);
       const tr = n.transfer && transferTotals(n.transfer);
+      const top = userRows(n, st.day).sort((p, q) => q.bytes - p.bytes);
+      const max = Math.max(1, ...top.map(u => u.bytes));
       return (st.hasCap ? `<div class="cardstat"><div class="pct">${st.pct.toFixed(1)}%<small>used</small></div>${sparkline(n, a.c)}</div>
-        <div class="meter"><div style="width:${Math.min(100, st.pct)}%;background:var(${s.c})"></div></div>
+        <div class="meter"><div style="width:${Math.max(0.6, Math.min(100, st.pct))}%;background:var(${s.c})"></div></div>
         <div class="sub">${fmtBytes(st.used, 2)} of ${fmtBytes(st.total, 2)} · <b>${fmtBytes(st.free, 2)} free</b></div>`
-        : `<div class="cardstat"><div class="pct">${fmtBytes(st.used, 2)}<small>stored</small></div>${sparkline(n, a.c)}</div>
-        ${tr ? `<div class="meter" title="Data copied"><div style="width:${tr.pctCopied}%;background:var(${a.c})"></div></div>
-        <div class="sub">Transfer: <b>${tr.pctCopied.toFixed(1)}% of data copied</b> · ${fmtGB(tr.pending_gb)} pending</div>` : ''}`) + `
+        : `<div class="cardstat"><div class="pct">${fmtBytes(st.used, 2)}<small>stored</small></div>${sparkline(n, a.c)}</div>`) + `
+        ${tr ? `<div class="sub" style="margin-top:4px">Transfer: <b>${tr.pctCopied.toFixed(1)}% of data copied</b> · ${tr.pctComplete.toFixed(1)}% of samples complete</div>` : ''}
+        <div class="topu"><div class="l">Top users</div>${top.slice(0, 3).map(u => `<div class="tu"><span class="n">${esc(u.user)}</span><span class="tr"><span style="width:${u.bytes / max * 100}%"></span></span><span class="r">${fmtBytes(u.bytes, 1)}</span></div>`).join('')}</div>
         <div class="chips">
           <span class="chip"><span class="dot" style="background:var(${s.c})"></span>${s.l}</span>
           <span class="chip">${ICONS.users}${st.userCount} users</span>
-          <span class="chip">${ICONS.cal}${st.hasCap ? 'Full in ' + st.eta : 'As of ' + fmtFull(st.day)}</span>
+          <span class="chip">${ICONS.cal}${st.hasCap && st.rate != null ? 'Full in ' + st.eta : 'As of ' + fmtFull(st.day)}</span>
         </div>`;
     })() : `<div class="chips"><span class="chip">No data yet</span></div>`;
     return `<a class="syscard" href="#/nas/${encodeURIComponent(n.name)}" style="${style}">
@@ -602,18 +613,155 @@ function renderLanding() {
       ${body}
       <span class="open">Open module ${ICONS.arrow}</span></a>`;
   }).join('');
+
+  const ok = stats.filter(Boolean);
+  const cap = ok.reduce((t, s) => t + (s.total || 0), 0), used = ok.reduce((t, s) => t + s.used, 0);
+  const raw = d.nas.reduce((t, n) => t + (n.raw_capacity || 0), 0), users = ok.reduce((t, s) => t + s.userCount, 0);
   const updated = d.nas.map(n => n.scanned_at).filter(Boolean).sort().pop();
+  const transfers = d.nas.filter(n => n.transfer && !n.demo);
+
   $('#app').innerHTML = `
     <div class="hero-head">
       <div class="brand"><div class="logo"><span style="color:#fff">${ICONS.db}</span></div><h1>NAS Storage Monitor</h1></div>
-      <p>Choose a NAS below to view its storage usage, who is using how much, and day-wise history.</p>
+      <p>Storage usage, who is using how much, and day-wise history for every NAS drive.</p>
+      <div class="hero-acts">
+        <button class="btn" id="reload">${IC2.refresh}Refresh</button>
+        <button class="btn" id="pdf">${IC2.print}Print / PDF</button>
+        <button class="btn primary" id="xlsx">${IC2.download}Download Excel report</button>
+      </div>
     </div>
     ${banner()}
+    <div class="panel overview">
+      <div><div class="l">NAS drives</div><div class="v">${d.nas.length}</div><div class="s">${d.nas.map(n => esc(n.name)).join(' · ')}</div></div>
+      <div><div class="l">Usable capacity</div><div class="v">${cap ? fmtBytes(cap, 0) : '–'}</div><div class="s">${raw ? fmtBytes(raw, 0) + ' raw' : ''}</div></div>
+      <div><div class="l">Used</div><div class="v">${fmtBytes(used, 2)}</div><div class="s">${cap ? (used / cap * 100).toFixed(1) + '% of usable' : ''}</div></div>
+      <div><div class="l">Free</div><div class="v">${cap ? fmtBytes(cap - used, 2) : '–'}</div><div class="s">across all drives</div></div>
+      <div><div class="l">Users / folders</div><div class="v">${users}</div><div class="s">with data on a NAS</div></div>
+      <div><div class="l">Last updated</div><div class="v" style="font-size:18px">${updated ? fmtFull(updated.slice(0, 10)) : '–'}</div><div class="s">${updated ? new Date(updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</div></div>
+    </div>
     <div class="cards">${cards}</div>
-    <footer>NAS Storage Monitor · internal storage dashboard${updated ? ' · last scan ' + new Date(updated).toLocaleString() : ''}</footer>`;
+
+    <div class="row2 mt" style="margin-top:28px;${transfers.length ? '' : 'grid-template-columns:1fr'}">
+      <div class="panel big"><div class="phead"><div><h3>Space used over time</h3><div class="sub">% of usable capacity, one point per scan or report</div></div>
+        <select id="lrange">${RANGES.map(([v, l]) => `<option value="${v}" ${v === state.range ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="legend2">${d.nas.map((n, i) => `<span><span class="swatch" style="background:var(${ACCENTS[i % ACCENTS.length].c})"></span>${esc(n.name)}${n.demo ? ' (sample)' : ''}</span>`).join('')}</div>
+        <div class="chart" id="allChart"></div></div>
+      ${transfers.map(n => { const T = transferTotals(n.transfer); return `<div class="panel big"><h3>${esc(n.name)} transfer progress</h3>
+        <div class="sub">As of ${fmtFull(n.transfer.day)} · ${fmtGB(T.copied_gb)} of ${fmtGB(T.size_gb)} copied (${T.pctCopied.toFixed(1)}%) · ${T.complete.toLocaleString()} of ${T.samples.toLocaleString()} samples complete</div>
+        <div class="hbars mt" style="--accent:var(--s1)">${n.transfer.rows.filter(r => r.share && r.size_gb).sort((p, q) => q.copied_gb / q.size_gb - p.copied_gb / p.size_gb).map(r => { const p = r.copied_gb / r.size_gb * 100; return `<div class="hbar" style="cursor:default"><div class="n" title="${esc(r.department)}">${esc(r.department)}</div><div class="tr"><div style="width:${p}%"></div></div><div class="r">${p.toFixed(1)}% · ${fmtGB(r.pending_gb)} left</div></div>`; }).join('')}</div></div>`; }).join('')}
+    </div>
+
+    <div class="panel big mt" style="margin-top:20px">
+      <div class="phead"><div><h3>User-wise breakdown — all NAS</h3><div class="sub" id="allSub"></div></div>
+        <div class="controls2"><input id="uq" type="search" placeholder="Search user / folder" value="${esc(state.q || '')}">
+          <select id="unas"><option value="">All NAS</option>${d.nas.map(n => `<option ${state.unas === n.name ? 'selected' : ''}>${esc(n.name)}</option>`).join('')}</select></div></div>
+      <div class="tbl" id="allUsers" style="max-height:560px"></div>
+    </div>
+    <footer>NAS Storage Monitor · internal storage dashboard${updated ? ' · last updated ' + new Date(updated).toLocaleString() : ''}</footer>`;
+
+  $('#reload').onclick = () => load().then(() => toast('Data refreshed')).catch(e => alert(e.message));
+  $('#pdf').onclick = () => window.print();
+  $('#xlsx').onclick = () => downloadExcel(d.nas);
+  $('#lrange').onchange = e => { state.range = +e.target.value; renderLanding(); };
+
+  const since = state.range ? shiftDay(ok.map(s => s.day).sort().pop() || '9999', state.range) : '0000';
+  lineChart($('#allChart'), {
+    series: d.nas.map((n, i) => ({ name: n.name, color: ACCENTS[i % ACCENTS.length].c,
+      points: n.days.map((day, k) => ({ x: day, y: n.total[k] ? n.used[k] / n.total[k] * 100 : null, k, n })).filter(p => p.y != null && p.x >= since) })),
+    yMin: 0, yMax: 100, yFmt: v => v + '%', markers: false, height: 300,
+    refs: [{ y: d.thresholds.warning, label: `Warning ${d.thresholds.warning}%`, color: '--warning' }],
+    tipFmt: p => `${p.y.toFixed(1)}% · ${fmtBytes(p.n.used[p.k], 2)}`,
+  });
+  renderAllUsers();
+  $('#uq').oninput = e => { state.q = e.target.value; renderAllUsers(); };
+  $('#unas').onchange = e => { state.unas = e.target.value; renderAllUsers(); };
+}
+
+function allUserRows() {
+  return state.data.nas.flatMap(n => {
+    const st = nasStats(n); if (!st) return [];
+    const list = userRows(n, st.day), tot = list.reduce((t, u) => t + u.bytes, 0);
+    return list.map(u => ({ ...u, nas: n.name, day: st.day, share: tot ? u.bytes / tot * 100 : 0, pctCap: st.total ? u.bytes / st.total * 100 : null, demo: n.demo }));
+  });
+}
+function renderAllUsers() {
+  const q = (state.q || '').toLowerCase();
+  let list = allUserRows().filter(u => (!state.unas || u.nas === state.unas) && (!q || u.user.toLowerCase().includes(q)));
+  const s = state.lsort || { key: 'bytes', dir: -1 };
+  list.sort((p, r) => { const av = p[s.key] ?? -Infinity, bv = r[s.key] ?? -Infinity; return (typeof av === 'string' ? av.localeCompare(bv) : av - bv) * s.dir; });
+  const total = list.reduce((t, u) => t + u.bytes, 0), max = Math.max(1, ...list.map(u => u.bytes));
+  $('#allSub').textContent = `${list.length} users / folders · ${fmtBytes(total, 2)} · latest data per NAS. Click a row to open it.`;
+  const cols = [['user', 'User / folder'], ['nas', 'NAS'], ['bytes', 'Size'], ['share', 'Share of NAS'], ['pctCap', '% of capacity'], ['files', 'Files'], ['d1', '24h'], ['d7', '7 days'], ['d30', '30 days'], ['day', 'As of']];
+  $('#allUsers').innerHTML = `<table><thead><tr>${cols.map(([c, l]) => `<th data-k="${c}">${l}${c === s.key ? (s.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead><tbody>` +
+    (list.length ? list.map(u => { const i = state.data.nas.findIndex(n => n.name === u.nas); return `<tr class="click" data-nas="${esc(u.nas)}" data-u="${esc(u.user)}">
+      <td>${esc(u.user)}</td><td style="text-align:left"><span class="swatch" style="background:var(${ACCENTS[i % ACCENTS.length].c})"></span>${esc(u.nas)}${u.demo ? ' <span class="flat">(sample)</span>' : ''}</td>
+      <td><span class="ubar" style="width:${Math.round(u.bytes / max * 80)}px;background:var(${ACCENTS[i % ACCENTS.length].c})"></span>${fmtBytes(u.bytes, 2)}</td>
+      <td>${u.share.toFixed(1)}%</td><td>${u.pctCap == null ? '–' : u.pctCap.toFixed(2) + '%'}</td><td>${u.files == null ? '–' : u.files.toLocaleString()}</td>
+      <td>${fmtDelta(u.d1)}</td><td>${fmtDelta(u.d7)}</td><td>${fmtDelta(u.d30)}</td><td>${fmtFull(u.day)}</td></tr>`; }).join('') : '<tr><td colspan="10" class="empty">No matching users</td></tr>') +
+    `</tbody><tfoot><tr><td>Total (${list.length})</td><td></td><td>${fmtBytes(total, 2)}</td><td colspan="7"></td></tr></tfoot></table>`;
+  $('#allUsers').querySelectorAll('th').forEach(th => th.onclick = () => {
+    const k = th.dataset.k; state.lsort = { key: k, dir: s.key === k ? -s.dir : (['user', 'nas'].includes(k) ? 1 : -1) }; renderAllUsers();
+  });
+  $('#allUsers').querySelectorAll('tbody tr[data-u]').forEach(tr => tr.onclick = () => {
+    location.hash = '#/nas/' + encodeURIComponent(tr.dataset.nas); setTimeout(() => { state.user = tr.dataset.u; render(); $('#userCard') && $('#userCard').scrollIntoView({ block: 'start' }); }, 0);
+  });
+}
+
+/* ---------- Excel report ---------- */
+async function downloadExcel(list) {
+  try {
+    await loadXLSX();
+    const wb = XLSX.utils.book_new(), today = isoDay(new Date());
+    const GB = v => v == null ? null : +(v / GiB).toFixed(2), TBv = v => v == null ? null : +(v / 1024 ** 4).toFixed(3);
+    const add = (name, aoa, widths) => {
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = (widths || aoa[0].map(() => 14)).map(w => ({ wch: w }));
+      XLSX.utils.book_append_sheet(wb, ws, name.replace(/[\\/?*[\]:]/g, '').slice(0, 31));
+    };
+    const sum = [['NAS Storage Monitor report'], ['Generated', new Date().toLocaleString()], [],
+      ['NAS', 'Data as of', 'Source', 'Usable capacity (TB)', 'Raw capacity (TB)', 'Used (TB)', 'Free (TB)', 'Used %', 'Status',
+       'Change 24h (GB)', 'Change 7d (GB)', 'Change 30d (GB)', 'Growth (GB/day)', 'Days until full', 'Users / folders',
+       'Samples', 'Samples complete', '% samples complete', 'Data size (GB)', 'Data copied (GB)', 'Data pending (GB)', '% data copied']];
+    for (const n of list) {
+      const st = nasStats(n); if (!st) { sum.push([n.name, 'no data']); continue; }
+      const T = n.transfer && transferTotals(n.transfer);
+      sum.push([n.name, n.scanned_at ? n.scanned_at.replace('T', ' ').slice(0, 16) : st.day,
+        n.demo ? 'Sample data' : n.src?.sheet?.ok ? 'Live Google Sheet' : n.src?.uploads ? 'Uploaded report' : 'Saved report',
+        TBv(st.total), TBv(n.raw_capacity), TBv(st.used), TBv(st.free), st.pct == null ? null : +st.pct.toFixed(2), statusOf(st.pct).l,
+        GB(st.d1), GB(st.d7), GB(st.d30), st.rate == null ? null : GB(st.rate), st.hasCap && st.rate > 0 ? Math.floor(st.free / st.rate) : null, st.userCount,
+        T ? T.samples : null, T ? T.complete : null, T ? +T.pctComplete.toFixed(1) : null, T ? T.size_gb : null, T ? T.copied_gb : null, T ? T.pending_gb : null, T ? +T.pctCopied.toFixed(1) : null]);
+    }
+    add('Summary', sum, [14, 17, 18, 12, 12, 10, 10, 8, 16, 12, 12, 12, 12, 12, 10, 9, 10, 10, 12, 12, 12, 10]);
+
+    const all = [['NAS', 'User / folder', 'Size (GB)', 'Share of NAS %', '% of capacity', 'Files', 'Change 24h (GB)', 'Change 7d (GB)', 'Change 30d (GB)', 'As of']];
+    allUserRows().filter(u => list.some(n => n.name === u.nas)).sort((p, q) => q.bytes - p.bytes)
+      .forEach(u => all.push([u.nas, u.user, GB(u.bytes), +u.share.toFixed(2), u.pctCap == null ? null : +u.pctCap.toFixed(3), u.files, GB(u.d1), GB(u.d7), GB(u.d30), u.day]));
+    add('All users', all, [12, 30, 11, 13, 12, 11, 14, 14, 14, 12]);
+
+    for (const n of list) {
+      if (!n.days.length) continue;
+      const tag = n.name.replace(/\s*NAS$/i, '');
+      add(`${tag} daily`, [['Date', 'Usable capacity (GB)', 'Used (GB)', 'Free (GB)', 'Used %', 'Change (GB)'],
+        ...n.days.map((day, k) => [day, GB(n.total[k]), GB(n.used[k]), GB(n.free[k]), n.total[k] ? +(n.used[k] / n.total[k] * 100).toFixed(2) : null, k ? GB(n.used[k] - n.used[k - 1]) : null])], [12, 18, 12, 12, 9, 12]);
+      const names = Object.keys(n.users).sort((p, q) => (n.users[q].bytes.at(-1) || 0) - (n.users[p].bytes.at(-1) || 0));
+      add(`${tag} user history (GB)`, [['Date', ...names], ...n.days.map((day, k) => [day, ...names.map(u => GB(n.users[u].bytes[k]))])], [12, ...names.map(u => Math.max(10, Math.min(30, u.length + 2)))]);
+      if (n.transfer) {
+        add(`${tag} transfer`, [[`${n.name} department transfer status as of ${n.transfer.day}`], [],
+          ['Department', 'Dest. share', 'Checked?', 'Samples', 'Complete', 'Partial', 'Not started', 'Pending samples', 'No files', '% samples complete', 'Size (GB)', 'Copied (GB)', 'Pending (GB)', '% data copied'],
+          ...n.transfer.rows.map(r => { const ok = !!r.share; return [r.department, r.share || '-', r.checked, r.samples, ok ? r.complete : 'n/a', ok ? r.partial : 'n/a', ok ? r.not_started : 'n/a', ok ? r.pending : 'n/a', r.no_files,
+            ok && r.samples - r.no_files ? +(r.complete / (r.samples - r.no_files) * 100).toFixed(1) : 'n/a', r.size_gb, ok ? r.copied_gb : 'n/a', ok ? r.pending_gb : 'n/a', ok && r.size_gb ? +(r.copied_gb / r.size_gb * 100).toFixed(1) : 'n/a']; }),
+          (() => { const T = transferTotals(n.transfer); return ['TOTAL (checked)', '', '', T.samples, T.complete, T.partial, T.not_started, T.pending, T.no_files, +T.pctComplete.toFixed(1), T.size_gb, T.copied_gb, T.pending_gb, +T.pctCopied.toFixed(1)]; })()],
+          [26, 11, 22, 9, 9, 8, 11, 14, 9, 16, 10, 11, 12, 13]);
+      }
+    }
+    const who = list.length === 1 ? list[0].name.replace(/\s+/g, '-') : 'all-NAS';
+    XLSX.writeFile(wb, `NAS-storage-report-${who}-${today}.xlsx`);
+    toast('Excel report downloaded');
+  } catch (e) { alert('Could not create the Excel file: ' + e.message); }
 }
 
 const IC2 = {
+  print: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>',
   upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/></svg>',
   sheet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>',
   db: ICONS.db,
@@ -693,7 +841,8 @@ function renderModule(name) {
         <button class="btn" id="sheetBtn" title="Connect a Google Sheet as a live data source">${IC2.sheet}Live sheet</button>
         <button class="btn" id="upBtn" title="Upload the transfer status Excel / CSV">${IC2.upload}Upload Excel</button>
         <input type="file" id="upFile" accept=".xlsx,.xls,.csv" hidden>
-        <button class="btn primary" id="csv">${IC2.download}Download Report</button></div>
+        <button class="btn" id="pdf" title="Print or save as PDF">${IC2.print}PDF</button>
+        <button class="btn primary" id="csv">${IC2.download}Download Excel</button></div>
     </div>
     <a class="btn small" href="#">${IC2.home}Back</a>${banner(n)}`;
   if (!st) { $('#app').innerHTML = head + '<div class="panel empty mt">No scans recorded for this NAS yet.</div>'; bindHead(n); return; }
@@ -787,19 +936,8 @@ function bindHead(n) {
     if (!confirm('Remove the reports uploaded in this browser for ' + n.name + '?')) return;
     LS.del(uploadsKey(n.name)); state.day = null; await load();
   });
-  $('#csv').onclick = () => {
-    const k = n.days.indexOf(state.day ?? n.days[n.days.length - 1]);
-    if (k < 0) return;
-    const lines = [['NAS', 'Date', 'User/Folder', 'Bytes', 'GB', 'Files']];
-    Object.entries(n.users).filter(([, u]) => u.bytes[k] != null).sort((p, q) => q[1].bytes[k] - p[1].bytes[k])
-      .forEach(([user, u]) => lines.push([n.name, n.days[k], user, u.bytes[k], (u.bytes[k] / 1024 ** 3).toFixed(2), u.files[k] ?? '']));
-    lines.push([], ['NAS', 'Date', 'Total bytes', 'Used bytes', 'Free bytes', 'Used %']);
-    n.days.forEach((day, j) => lines.push([n.name, day, n.total[j], n.used[j], n.free[j], (n.used[j] / n.total[j] * 100).toFixed(2)]));
-    const csv = lines.map(r => r.map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v).join(',')).join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    Object.assign(document.createElement('a'), { href: url, download: `${n.name}-storage-${n.days[k]}.csv` }).click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
+  $('#csv').onclick = () => downloadExcel([n]);
+  $('#pdf').onclick = () => window.print();
 }
 
 function barChart(el, pts, color) {
@@ -837,9 +975,9 @@ function barChart(el, pts, color) {
   });
 }
 
-function userRows(n) {
-  const k = n.days.indexOf(state.day);
-  const back = days => { const j = idxOnOrBefore(n.days, shiftDay(state.day, days)); return j >= 0 && j < k ? j : -1; };
+function userRows(n, day = state.day) {
+  const k = n.days.indexOf(day);
+  const back = days => { const j = idxOnOrBefore(n.days, shiftDay(day, days)); return j >= 0 && j < k ? j : -1; };
   const j1 = back(1), j7 = back(7), j30 = back(30);
   const dd = (u, j) => j >= 0 && u.bytes[j] != null ? u.bytes[k] - u.bytes[j] : null;
   return Object.entries(n.users).filter(([, u]) => u.bytes[k] != null)
