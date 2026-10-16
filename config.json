@@ -1,0 +1,21 @@
+{
+  "db": "data/storage.db",
+  "server": { "host": "0.0.0.0", "port": 8080 },
+  "thresholds": { "warning": 80, "critical": 90 },
+  "nas": [
+    {
+      "name": "NAS-01",
+      "path": "/mnt/nas1",
+      "user_mode": "folders",
+      "user_root": "/mnt/nas1",
+      "exclude": ["#recycle", "@eaDir", "#snapshot", ".snapshot", "lost+found"]
+    },
+    {
+      "name": "NAS-02",
+      "path": "/mnt/nas2",
+      "user_mode": "folders",
+      "user_root": "/mnt/nas2",
+      "exclude": ["#recycle", "@eaDir", "#snapshot", ".snapshot", "lost+found"]
+    }
+  ]
+}
