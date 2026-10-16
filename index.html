@@ -732,6 +732,11 @@ function ulabel(k) {
   const d = deptMap()[String(k).toLowerCase()];
   return !d ? k : d.toLowerCase() === String(k).toLowerCase() ? d : `${d} · ${k}`;
 }
+/* department without the username: "Haematology - user1" -> "Haematology" */
+function plainDept(r) {
+  const d = hasShare(r) && deptMap()[r.share.toLowerCase()];
+  return d || String(r.department).replace(new RegExp('\\s*[-–·(]\\s*' + (r.share || '§') + '\\)?$', 'i'), '');
+}
 /* department name for a transfer row: the mapped department, plus the share when several shares share a department */
 function deptLabel(r) {
   const m = deptMap(), d = r.share && m[r.share.toLowerCase()];
@@ -786,6 +791,7 @@ function renderLanding() {
   const raw = d.nas.reduce((t, n) => t + (n.raw_capacity || 0), 0), users = ok.reduce((t, s) => t + s.userCount, 0);
   const updated = d.nas.map(n => n.scanned_at).filter(Boolean).sort().pop();
   const transfers = d.nas.filter(n => n.transfer && !n.demo);
+  const multiAny = d.nas.some(n => n.days.length >= 2);
 
   $('#app').innerHTML = `
     <div class="hero-head">
@@ -798,11 +804,11 @@ function renderLanding() {
     </div>
     <div class="cards">${cards}</div>
 
-    <div class="row2 mt" style="margin-top:28px;${transfers.length ? '' : 'grid-template-columns:1fr'}">
-      <div class="panel big"><div class="phead"><div><h3>Space used over time</h3><div class="sub">% of usable capacity, one point per scan or report</div></div>
+    <div class="row2 mt" style="margin-top:28px;${transfers.length && multiAny ? '' : 'grid-template-columns:1fr'}">
+      ${multiAny ? `<div class="panel big"><div class="phead"><div><h3>Space used over time</h3><div class="sub">% of usable capacity, one point per scan or report</div></div>
         <select id="lrange">${RANGES.map(([v, l]) => `<option value="${v}" ${v === state.range ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         <div class="legend2">${d.nas.map((n, i) => `<span><span class="swatch" style="background:var(${ACCENTS[i % ACCENTS.length].c})"></span>${esc(n.name)}${n.demo ? ' (sample)' : ''}</span>`).join('')}</div>
-        <div class="chart" id="allChart"></div></div>
+        <div class="chart" id="allChart"></div></div>` : ''}
       ${transfers.map(n => { const T = transferTotals(n.transfer); return `<div class="panel big"><h3>${esc(n.name)} transfer progress</h3>
         <div class="sub">As of ${fmtFull(n.transfer.day)} · ${fmtGB(T.copied_gb)} copied${T.pctCopied != null ? ` (${T.pctCopied.toFixed(1)}% overall)` : ''} · ${T.samples.toLocaleString()} samples</div>
         <div class="hbars mt" style="--accent:var(--s1)">${n.transfer.rows.filter(r => hasShare(r) && rowPct(r) != null).sort((p, q) => rowPct(q) - rowPct(p)).map(r => { const p = rowPct(r); return `<div class="hbar" style="cursor:default"><div class="n" title="${esc(deptLabel(r))}">${esc(deptLabel(r))}</div><div class="tr"><div style="width:${Math.min(100, p)}%"></div></div><div class="r">${p.toFixed(1)}% · ${fmtGB(r.copied_gb)}</div></div>`; }).join('')}</div></div>`; }).join('')}
@@ -810,7 +816,7 @@ function renderLanding() {
 
     <div class="panel big mt" style="margin-top:20px">
       <div class="phead"><div><h3>User-wise breakdown — all NAS</h3><div class="sub" id="allSub"></div></div>
-        <div class="controls2"><input id="uq" type="search" placeholder="Search user / folder" value="${esc(state.q || '')}">
+        <div class="controls2"><input id="uq" type="search" placeholder="Search user or department" value="${esc(state.q || '')}">
           <select id="unas"><option value="">All NAS</option>${d.nas.map(n => `<option ${state.unas === n.name ? 'selected' : ''}>${esc(n.name)}</option>`).join('')}</select></div></div>
       <div class="tbl" id="allUsers" style="max-height:560px"></div>
     </div>
@@ -819,6 +825,7 @@ function renderLanding() {
   $('#reload').onclick = () => load().then(() => toast('Data refreshed')).catch(e => alert(e.message));
   $('#pdf').onclick = () => window.print();
   $('#xlsx').onclick = () => downloadExcel(d.nas);
+  if (multiAny) {
   $('#lrange').onchange = e => { state.range = +e.target.value; renderLanding(); };
 
   const since = state.range ? shiftDay(ok.map(s => s.day).sort().pop() || '9999', state.range) : '0000';
@@ -829,6 +836,7 @@ function renderLanding() {
     refs: [{ y: d.thresholds.warning, label: `Warning ${d.thresholds.warning}%`, color: '--warning' }],
     tipFmt: p => `${p.y.toFixed(1)}% · ${fmtBytes(p.n.used[p.k], 2)}`,
   });
+  }
   renderAllUsers();
   $('#uq').oninput = e => { state.q = e.target.value; renderAllUsers(); };
   $('#unas').onchange = e => { state.unas = e.target.value; renderAllUsers(); };
@@ -847,15 +855,18 @@ function renderAllUsers() {
   const s = state.lsort || { key: 'bytes', dir: -1 };
   list.sort((p, r) => { const av = p[s.key] ?? -Infinity, bv = r[s.key] ?? -Infinity; return (typeof av === 'string' ? av.localeCompare(bv) : av - bv) * s.dir; });
   const total = list.reduce((t, u) => t + u.bytes, 0), max = Math.max(1, ...list.map(u => u.bytes));
-  $('#allSub').textContent = `${list.length} users / folders · ${fmtBytes(total, 2)} · latest data per NAS. Click a row to open it.`;
-  const cols = [['user', 'User / folder'], ['nas', 'NAS'], ['bytes', 'Size'], ['share', 'Share of NAS'], ['pctCap', '% of capacity'], ['files', 'Files'], ['d1', '24h'], ['d7', '7 days'], ['d30', '30 days'], ['day', 'As of']];
-  $('#allUsers').innerHTML = `<table><thead><tr>${cols.map(([c, l]) => `<th data-k="${c}">${l}${c === s.key ? (s.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead><tbody>` +
+  $('#allSub').textContent = `${list.length} users · ${fmtBytes(total, 2)} · latest data per NAS. Click a row to open it.`;
+  const show = k => list.some(u => u[k] != null);
+  const cols = [['user', 'User'], ['dept', 'Department'], ['nas', 'NAS'], ['bytes', 'Size'], ['share', 'Share of NAS'], ['pctCap', '% of capacity'], ['files', 'Files'], ['d1', '24h'], ['d7', '7 days'], ['d30', '30 days'], ['day', 'As of']]
+    .filter(([c]) => !['files', 'd1', 'd7', 'd30'].includes(c) || show(c));
+  const on = k => cols.some(c => c[0] === k);
+  $('#allUsers').innerHTML = `<table><thead><tr>${cols.map(([c, l]) => `<th data-k="${c}"${['dept', 'nas'].includes(c) ? ' style="text-align:left"' : ''}>${l}${c === s.key ? (s.dir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead><tbody>` +
     (list.length ? list.map(u => { const i = state.data.nas.findIndex(n => n.name === u.nas); return `<tr class="click" data-nas="${esc(u.nas)}" data-u="${esc(u.user)}">
-      <td>${esc(ulabel(u.user))}</td><td style="text-align:left"><span class="swatch" style="background:var(${ACCENTS[i % ACCENTS.length].c})"></span>${esc(u.nas)}${u.demo ? ' <span class="flat">(sample)</span>' : ''}</td>
+      <td>${esc(u.user)}</td><td style="text-align:left">${esc(u.dept || '–')}</td><td style="text-align:left"><span class="swatch" style="background:var(${ACCENTS[i % ACCENTS.length].c})"></span>${esc(u.nas)}${u.demo ? ' <span class="flat">(sample)</span>' : ''}</td>
       <td><span class="ubar" style="width:${Math.round(u.bytes / max * 80)}px;background:var(${ACCENTS[i % ACCENTS.length].c})"></span>${fmtBytes(u.bytes, 2)}</td>
-      <td>${u.share.toFixed(1)}%</td><td>${u.pctCap == null ? '–' : u.pctCap.toFixed(2) + '%'}</td><td>${u.files == null ? '–' : u.files.toLocaleString()}</td>
-      <td>${fmtDelta(u.d1)}</td><td>${fmtDelta(u.d7)}</td><td>${fmtDelta(u.d30)}</td><td>${fmtFull(u.day)}</td></tr>`; }).join('') : '<tr><td colspan="10" class="empty">No matching users</td></tr>') +
-    `</tbody><tfoot><tr><td>Total (${list.length})</td><td></td><td>${fmtBytes(total, 2)}</td><td colspan="7"></td></tr></tfoot></table>`;
+      <td>${u.share.toFixed(1)}%</td><td>${u.pctCap == null ? '–' : u.pctCap.toFixed(2) + '%'}</td>${on('files') ? `<td>${u.files == null ? '–' : u.files.toLocaleString()}</td>` : ''}
+      ${['d1', 'd7', 'd30'].filter(on).map(k => `<td>${fmtDelta(u[k])}</td>`).join('')}<td>${fmtFull(u.day)}</td></tr>`; }).join('') : `<tr><td colspan="${cols.length}" class="empty">No matching users</td></tr>`) +
+    `</tbody><tfoot><tr><td>Total (${list.length})</td><td></td><td></td><td>${fmtBytes(total, 2)}</td><td colspan="${cols.length - 4}"></td></tr></tfoot></table>`;
   $('#allUsers').querySelectorAll('th').forEach(th => th.onclick = () => {
     const k = th.dataset.k; state.lsort = { key: k, dir: s.key === k ? -s.dir : (['user', 'nas'].includes(k) ? 1 : -1) }; renderAllUsers();
   });
@@ -936,7 +947,7 @@ const hasShare = r => !!(r.share && r.share !== '-');
 const rowPct = r => r.pct_copied != null ? r.pct_copied : hasShare(r) && r.size_gb ? r.copied_gb / r.size_gb * 100 : null;
 /* Columns of the transfer table; only columns with at least one value are shown. */
 const TCOLS = [
-  ['Department', r => deptLabel(r), 'l'], ['Users', r => r.share || '–', 'l'], ['Checked?', r => r.checked || '', 'l'],
+  ['Department', r => plainDept(r), 'l'], ['Users', r => r.share || '–', 'l'], ['Checked?', r => r.checked || '', 'l'],
   ['Samples', r => r.samples], ['Complete', r => r.complete], ['Partial', r => r.partial], ['Not started', r => r.not_started],
   ['Pending samples', r => r.pending], ['No files', r => r.no_files],
   ['Size (GB)', r => r.size_gb_given ?? (r.size_est ? null : r.size_gb)], ['Copied (GB)', r => r.copied_gb], ['Pending (GB)', r => r.pending_gb_given ?? null],
@@ -956,7 +967,7 @@ function transferTotals(t) {
 }
 function transferPanel(n, a) {
   const t = n.transfer, T = transferTotals(t), cols = transferCols(t.rows);
-  const cell = (c, r) => { const v = c[1](r); if (c[2] === 'pct') return v == null ? 'n/a' : `<span class="ubar" style="width:${Math.round(Math.min(100, v) * 0.35)}px;background:var(${a.c})"></span>${v.toFixed(1)}%`;
+  const cell = (c, r) => { const v = c[1](r); if (c[2] === 'pct') return v == null ? 'n/a' : `${v.toFixed(1)}%`;
     return v == null || v === '' ? (c[2] === 'l' ? '' : 'n/a') : typeof v === 'number' ? (/GB/.test(c[0]) ? fmtGB(v) : v.toLocaleString()) : esc(v); };
   const tot = { 'Department': 'Total', 'Samples': T.samples.toLocaleString(), 'Complete': T.complete == null ? '' : T.complete.toLocaleString(), 'Copied (GB)': fmtGB(T.copied_gb),
     'Size (GB)': T.size_gb == null ? '' : fmtGB(T.size_gb), '% data copied': T.pctCopied == null ? '' : T.pctCopied.toFixed(1) + '%' };
@@ -969,7 +980,7 @@ function transferPanel(n, a) {
     <div class="strip">${strip.map(([l, v, s], i) => `<div class="${i === strip.length - 1 ? 'tot' : ''}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('')}</div>
     <div class="tbl" style="max-height:none"><table class="ttable">
       <thead><tr>${cols.map(c => `<th${c[2] === 'l' ? ' style="text-align:left"' : ''}>${c[0]}</th>`).join('')}</tr></thead>
-      <tbody>${t.rows.map(r => `<tr>${cols.map(c => `<td${c[2] === 'l' ? ' style="text-align:left"' : ''}${c[2] === 'pct' ? ' style="min-width:96px"' : ''}>${cell(c, r)}</td>`).join('')}</tr>`).join('')}</tbody>
+      <tbody>${t.rows.map(r => `<tr>${cols.map(c => `<td${c[2] === 'l' ? ' style="text-align:left"' : ''}>${cell(c, r)}</td>`).join('')}</tr>`).join('')}</tbody>
       <tfoot><tr>${cols.map(c => `<td${c[2] === 'l' ? ' style="text-align:left"' : ''}>${tot[c[0]] ?? ''}</td>`).join('')}</tr></tfoot>
     </table></div></div>`;
 }
@@ -1006,6 +1017,7 @@ function renderModule(name) {
   const s = statusOf(st.pct), L = st.L, prevDay = L > 0 ? n.days[L - 1] : null;
   const sinceLast = L > 0 ? n.used[L] - n.used[L - 1] : null;
   const j30 = (() => { const j = idxOnOrBefore(n.days, shiftDay(st.day, 30)); return j >= 0 && j < L ? j : (L > 0 ? 0 : -1); })();
+  const multi = n.days.length >= 2;   // growth, trends and change-by-day need two dates
   const daysLeft = st.hasCap && st.rate > 0 ? Math.floor(st.free / st.rate) : null;
   $('#app').innerHTML = head + `
     <div class="kpis4">
@@ -1016,7 +1028,7 @@ function renderModule(name) {
         <div class="s"><span class="status"><span class="dot" style="background:var(${s.c})"></span>${s.l}</span>${st.hasCap ? ` · ${fmtBytes(st.used)} / ${fmtBytes(st.total)}` : ''}</div></div></div>
     </div>
     ${n.transfer ? transferPanel(n, a) : ''}
-    <div class="row2">
+    ${multi ? `<div class="row2">
       <div class="panel big"><h3>Growth rate & projection</h3>
         <div class="mini4">
           <div class="mini"><div class="l">Since last scan</div><div class="v ${sinceLast == null ? '' : sinceLast > 0 ? 'red' : 'green'}">${sinceLast == null ? '–' : (sinceLast > 0 ? '▲ +' : '▼ ') + fmtBytes(sinceLast)}</div></div>
@@ -1035,14 +1047,14 @@ function renderModule(name) {
       <div class="panel big"><div class="phead"><div><h3>Storage used over time</h3><div class="sub" id="rangeSub"></div></div>
         <select id="rangeSel">${RANGES.map(([v, l]) => `<option value="${v}" ${v === state.range ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
         <div class="chart" id="nasChart"></div></div>
-    </div>
-    <div class="row2" style="grid-template-columns:1.25fr 1fr">
+    </div>` : ''}
+    <div class="row2" style="grid-template-columns:${multi ? '1.25fr 1fr' : '1fr'}">
       <div class="panel big" style="--accent:var(${a.c})"><div class="phead"><div><h3>User-wise breakdown</h3><div class="sub" id="ubSub"></div></div>
         <select id="daySel" aria-label="Date"></select></div>
         <div id="ubody"></div></div>
-      <div class="panel big"><h3>Storage change by day</h3><div class="sub" id="cbSub"></div>
+      ${multi ? `<div class="panel big"><h3>Storage change by day</h3><div class="sub" id="cbSub"></div>
         <div class="legend2"><span><span class="swatch" style="background:var(${a.c})"></span>Space added</span><span><span class="swatch" style="background:var(--axis)"></span>Space freed</span></div>
-        <div class="chart" id="changeChart"></div></div>
+        <div class="chart" id="changeChart"></div></div>` : ''}
     </div>
     <div class="panel big mt" id="userCard" hidden></div>
     <div class="row2 mt" style="grid-template-columns:1.4fr 1fr">
@@ -1053,6 +1065,7 @@ function renderModule(name) {
   bindHead(n);
 
   const rng = rangeIdx(n);
+  if (multi) {
   $('#rangeSub').textContent = rng.length ? `${rng.length} scans, ${fmtFull(rng[0].day)} → ${fmtFull(rng[rng.length - 1].day)}` : 'No scans in this period';
   $('#rangeSel').onchange = e => { state.range = +e.target.value; renderModule(name); };
   lineChart($('#nasChart'), {
@@ -1064,6 +1077,7 @@ function renderModule(name) {
   const cr = rng.filter(o => o.k > 0).slice(-30);
   $('#cbSub').textContent = cr.length ? `${fmtFull(cr[0].day)} → ${fmtFull(cr[cr.length - 1].day)} · net ${fmtBytes(cr.reduce((t, o) => t + n.used[o.k] - n.used[o.k - 1], 0))}` : '';
   barChart($('#changeChart'), cr.map(o => ({ x: o.day, y: n.used[o.k] - n.used[o.k - 1] })), a.c);
+  }
 
   const rows = [...rng].reverse();
   $('#dayTbl').innerHTML = `<table><thead><tr><th>Date</th><th>Used</th><th>Free</th><th>%</th><th>Change</th></tr></thead><tbody>` +
@@ -1137,7 +1151,7 @@ function userRows(n, day = state.day) {
   const j1 = back(1), j7 = back(7), j30 = back(30);
   const dd = (u, j) => j >= 0 && u.bytes[j] != null ? u.bytes[k] - u.bytes[j] : null;
   return Object.entries(n.users).filter(([, u]) => u.bytes[k] != null)
-    .map(([user, u]) => ({ user, bytes: u.bytes[k], files: u.files[k], d1: dd(u, j1), d7: dd(u, j7), d30: dd(u, j30) }));
+    .map(([user, u]) => ({ user, dept: deptMap()[user.toLowerCase()] || '', bytes: u.bytes[k], files: u.files[k], d1: dd(u, j1), d7: dd(u, j7), d30: dd(u, j30) }));
 }
 
 function renderUsers(n, a) {
@@ -1153,12 +1167,14 @@ function renderUsers(n, a) {
 
   const { key, dir } = state.sort;
   list.sort((p, q) => { const av = p[key] ?? -Infinity, bv = q[key] ?? -Infinity; return (typeof av === 'string' ? av.localeCompare(bv) : av - bv) * dir; });
-  const cols = [['user', 'User / folder'], ['bytes', 'Size'], ['share', 'Share'], ['files', 'Files'], ['d1', '24h'], ['d7', '7 days'], ['d30', '30 days']];
-  $('#userTbl').innerHTML = `<table><thead><tr>${cols.map(([c, l]) => `<th data-k="${c}">${l}${c === key ? (dir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead><tbody>` +
-    list.map(u => `<tr class="click ${u.user === state.user ? 'sel' : ''}" data-u="${esc(u.user)}">
-      <td>${esc(ulabel(u.user))}</td><td>${fmtBytes(u.bytes, 2)}</td><td>${total ? (u.bytes / total * 100).toFixed(1) : 0}%</td><td>${u.files == null ? '–' : u.files.toLocaleString()}</td>
-      <td>${fmtDelta(u.d1)}</td><td>${fmtDelta(u.d7)}</td><td>${fmtDelta(u.d30)}</td></tr>`).join('') +
-    `</tbody><tfoot><tr><td>Total (${list.length})</td><td>${fmtBytes(total, 2)}</td><td>100%</td><td>${files ? files.toLocaleString() : '–'}</td><td colspan="3"></td></tr></tfoot></table>`;
+  // columns with no values yet (files, changes before a second date) are left out
+  const cols = [['user', 'User', u => esc(u.user), 'Total (' + list.length + ')'], ['dept', 'Department', u => esc(u.dept || '–'), ''], ['bytes', 'Size', u => fmtBytes(u.bytes, 2), fmtBytes(total, 2)],
+    ['share', 'Share', u => (total ? (u.bytes / total * 100).toFixed(1) : 0) + '%', '100%'], ['files', 'Files', u => u.files == null ? '–' : u.files.toLocaleString(), files ? files.toLocaleString() : ''],
+    ['d1', '24h', u => fmtDelta(u.d1), ''], ['d7', '7 days', u => fmtDelta(u.d7), ''], ['d30', '30 days', u => fmtDelta(u.d30), '']]
+    .filter(([c]) => !['files', 'd1', 'd7', 'd30'].includes(c) || list.some(u => u[c] != null));
+  $('#userTbl').innerHTML = `<table><thead><tr>${cols.map(([c, l]) => `<th data-k="${c}"${c === 'dept' ? ' style="text-align:left"' : ''}>${l}${c === key ? (dir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead><tbody>` +
+    list.map(u => `<tr class="click ${u.user === state.user ? 'sel' : ''}" data-u="${esc(u.user)}">${cols.map(c => `<td${c[0] === 'dept' ? ' style="text-align:left"' : ''}>${c[2](u)}</td>`).join('')}</tr>`).join('') +
+    `</tbody><tfoot><tr>${cols.map(c => `<td>${c[3]}</td>`).join('')}</tr></tfoot></table>`;
   $('#userTbl').querySelectorAll('th').forEach(th => th.onclick = () => {
     const c = th.dataset.k === 'share' ? 'bytes' : th.dataset.k;
     state.sort = { key: c, dir: state.sort.key === c ? -state.sort.dir : (c === 'user' ? 1 : -1) };
