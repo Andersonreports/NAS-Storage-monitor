@@ -39,7 +39,7 @@ body { margin: 0; color: var(--ink); background-color: var(--page);
   font: 14px/1.5 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
 .topline { height: 3px; background: linear-gradient(90deg, #2a78d6, #1baf7a 55%, #e0912f); }
 a { color: inherit; }
-.wrap { max-width: 1320px; margin: 0 auto; padding: 0 16px 40px; }
+.wrap { max-width: none; margin: 0 auto; padding: 0 28px 40px; }
 button, select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
 .banner { margin: 16px auto 0; max-width: 760px; text-align: center; font-size: 13px; color: var(--ink-2);
   background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warning); border-radius: 8px; padding: 8px 12px; }
@@ -123,14 +123,14 @@ tfoot td { font-weight: 700; border-bottom: 0; }
 .mt { margin-top: 16px; }
 .themebtn { position: fixed; right: 16px; bottom: 16px; font-size: 12px; padding: 6px 10px; box-shadow: var(--shadow); }
 /* ---------- module v2 (NGS-style) ---------- */
-.mbar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 16px; padding: 28px 0 22px; }
+.mbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; padding: 28px 0 22px; }
 .mbar .ttl { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .mbar .logo { width: 48px; height: 48px; border-radius: 12px; }
 .mbar .logo svg { width: 24px; height: 24px; }
 .mbar h1 { font-size: 21px; font-weight: 800; margin: 0; letter-spacing: -0.01em; }
 .mbar .acts { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .mbar .acts .btn { padding: 8px 12px; }
-@media (max-width: 1200px) { .mbar { grid-template-columns: 1fr auto; } .mbar .acts { grid-column: 1 / -1; justify-content: flex-start; } }
+@media (max-width: 1000px) { .mbar { grid-template-columns: 1fr; } .mbar .acts { justify-content: flex-start; } }
 @media (max-width: 700px) { .mbar { grid-template-columns: 1fr; } }
 .switch { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 4px; box-shadow: var(--shadow); }
 .switch a { padding: 8px 18px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; color: var(--ink); }
@@ -213,6 +213,25 @@ tfoot td { font-weight: 700; border-bottom: 0; }
   .syscard:hover { transform: none; }
   footer { margin-top: 16px; }
 }
+.btn.green { background: #0f7f57; color: #fff; border-color: transparent; }
+.cards { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+#editor { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; }
+.ed-back { position: absolute; inset: 0; background: rgba(20,19,15,.45); }
+.ed-card { position: relative; background: var(--surface); border-radius: 14px; padding: 22px 24px; width: min(1500px, calc(100vw - 32px)); max-height: calc(100vh - 32px); display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(0,0,0,.25); }
+.ed-bar, .ed-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.ed-bar label, .ed-foot label { font-size: 12px; font-weight: 700; color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+.ed-bar input, .ed-foot input { font: inherit; font-weight: 500; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--ink); }
+.ed-foot .grow { flex: 1; } .ed-foot .grow input { flex: 1; min-width: 260px; }
+.sp { flex: 1; }
+.ed-tbl { flex: 1; max-height: none; border: 1px solid var(--border); border-radius: 10px; }
+.ed-tbl th { position: sticky; top: 0; background: var(--surface-2); cursor: default; }
+.ed-tbl td { padding: 3px 4px; }
+.ed-tbl input { width: 100%; min-width: 64px; font: inherit; font-size: 13px; padding: 5px 6px; border: 1px solid transparent; border-radius: 6px; background: var(--surface-2); text-align: right; color: var(--ink); }
+.ed-tbl input[type=text] { text-align: left; min-width: 130px; }
+.ed-tbl input:focus { outline: none; border-color: var(--s1); background: var(--surface); }
+.ed-tbl td.d { color: var(--ink-2); font-variant-numeric: tabular-nums; padding-right: 10px; }
+.ed-tbl .x { border: 0; background: none; font-size: 18px; color: var(--muted); padding: 2px 8px; }
+.ed-tbl .x:hover { color: var(--critical); }
 </style>
 </head>
 <body>
@@ -403,10 +422,12 @@ function cellNum(v) {
 const COLS = [
   ['date', h => /^(date|as ?of|day|report date)$/.test(h)],
   ['department', h => /^department/.test(h)],
-  ['share', h => /dest|share/.test(h)],
+  ['share', h => /dest|share|username|^users?$/.test(h)],
+  ['time', h => /^time$/.test(h)],
   ['checked', h => /checked/.test(h)],
   ['pending_gb', h => /pending/.test(h) && /gb/.test(h)],
   ['size_gb', h => /^size/.test(h)],
+  ['pct_copied', h => /%/.test(h) && /copied/.test(h)],
   ['copied_gb', h => /^copied/.test(h)],
   ['used_gb', h => /^used/.test(h)],
   ['samples', h => /^samples$|^total samples$/.test(h)],
@@ -416,6 +437,14 @@ const COLS = [
   ['pending', h => /^pending/.test(h) && !/%/.test(h)],
   ['no_files', h => /no files/.test(h)],
 ];
+/* Fill in values the sheet does not carry: pending samples, and size estimated from copied ÷ % copied. */
+function finishRow(row) {
+  row.size_gb_given = row.size_gb; row.pending_gb_given = row.pending_gb;
+  if (row.pending == null && (row.partial != null || row.not_started != null)) row.pending = (row.partial || 0) + (row.not_started || 0);
+  if (row.size_gb == null && row.copied_gb != null && row.pct_copied > 0) { row.size_gb = row.copied_gb / (row.pct_copied / 100); row.size_est = true; }
+  if (row.pending_gb == null && row.size_gb != null && row.copied_gb != null) row.pending_gb = Math.max(0, row.size_gb - row.copied_gb);
+  return row;
+}
 /* Turn a sheet (array of rows) into [{day, scanned_at, rows}] snapshots. */
 function parseTransferSheet(aoa, fallback) {
   const norm = v => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -423,7 +452,7 @@ function parseTransferSheet(aoa, fallback) {
   if (h < 0) throw new Error('No "Department" header row found in the sheet.');
   const map = {};
   aoa[h].forEach((c, i) => { const k = COLS.find(([key, t]) => !(key in map) && t(norm(c))); if (k) map[k[0]] = i; });
-  if (map.copied_gb == null && map.used_gb == null) throw new Error('Could not find a "Copied (GB)" or "Used (GB)" column.');
+  if (map.copied_gb == null && map.used_gb == null) throw new Error('Could not find a "Copied (GB)" column.');
   let asOf = null;
   for (const r of aoa.slice(0, h)) for (const c of r) { const t = /as of/i.test(String(c)) && parseWhen(c); if (t) { asOf = t; break; } }
   asOf = asOf || fallback || new Date();
@@ -431,12 +460,14 @@ function parseTransferSheet(aoa, fallback) {
   for (const r of aoa.slice(h + 1)) {
     const dept = String(r[map.department] ?? '').trim();
     if (!dept || /^total/i.test(dept)) continue;
-    const when = map.date != null ? parseWhen(r[map.date]) || asOf : asOf;
+    const when = map.date != null ? parseWhen(`${r[map.date] ?? ''} ${map.time != null ? r[map.time] ?? '' : ''}`.trim()) || asOf : asOf;
     const share = String(r[map.share] ?? '').trim();
     const hasShare = share && share !== '-' && !/^n\/?a$/i.test(share);
     const row = { department: dept, share: hasShare ? share : null, checked: String(r[map.checked] ?? '').trim() };
     for (const k of ['samples', 'complete', 'partial', 'not_started', 'pending', 'no_files']) row[k] = map[k] != null ? cellNum(r[map[k]]) : null;
     for (const k of ['size_gb', 'copied_gb', 'used_gb', 'pending_gb']) row[k] = map[k] != null ? cellNum(r[map[k]]) : null;
+    if (map.pct_copied != null) { const raw = r[map.pct_copied], v = cellNum(raw); row.pct_copied = v == null ? null : !/%/.test(String(raw)) && v <= 1 ? v * 100 : v; }
+    finishRow(row);
     // the page is public: "Haematology - <staff name>" becomes "Haematology - <share>"
     const m = hasShare && dept.match(/^(.*?)\s+[-–]\s+(.+)$/);
     if (m && m[2].toLowerCase() !== share.toLowerCase()) row.department = `${m[1]} - ${share}`;
@@ -450,6 +481,7 @@ function parseTransferSheet(aoa, fallback) {
 
 /* Merge one snapshot into a NAS's day-aligned arrays. */
 function applySnapshot(n, snap) {
+  if (!snap.rows.some(r => r.share && (r.copied_gb ?? r.used_gb) != null)) return;   // half-filled sheet: keep what we have
   if (n.demo) Object.assign(n, { demo: false, days: [], total: [], used: [], free: [], users: {}, transfer: null });
   let k = n.days.indexOf(snap.day);
   if (k < 0) {
@@ -525,7 +557,20 @@ const LS = {
 const uploadsKey = n => 'nas-uploads:' + n;
 const sheetKey = n => 'nas-sheet:' + n;
 
+async function loadDepartments(data) {
+  const any = data.nas.map(n => n.sheet_url && n.sheet_url.match(/\/spreadsheets\/d\/([\w-]+)/)).find(Boolean);
+  if (!any) return;
+  try {
+    const r = await fetch(`https://docs.google.com/spreadsheets/d/${any[1]}/gviz/tq?tqx=out:csv&headers=1&sheet=Departments`, { cache: 'no-store' });
+    if (!r.ok) return;
+    const rows = csvToRows(await r.text());
+    if (!/username/i.test((rows[0] || [])[0] || '')) return;
+    rows.slice(1).forEach(([u, d]) => { if (u && d) data.user_departments[u.trim().toLowerCase()] = d.trim(); });
+  } catch (e) {}
+}
 async function applySources(data) {
+  data.user_departments = data.user_departments || {};
+  await loadDepartments(data);
   for (const n of data.nas) {
     n.src = { sheet: null, uploads: 0 };
     const url = LS.get(sheetKey(n.name), null) || n.sheet_url;
@@ -566,11 +611,119 @@ function toast(msg) {
 function sourceNote(n) {
   const out = [];
   const sh = n.src && n.src.sheet;
-  if (sh && sh.ok) out.push(`\u2139 Live from Google Sheet${sh.shared ? '' : ' (connected in this browser only)'} · read ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+  if (false) out.push(`\u2139 Live from Google Sheet${sh.shared ? '' : ' (connected in this browser only)'} · read ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
   if (sh && sh.empty) out.push(`\u2139 The live sheet tab for ${esc(n.name)} is connected but still empty. Figures appear here as soon as the report table is pasted into it.`);
   if (sh && sh.error) out.push(`Could not read the live sheet: ${esc(sh.error)}. In Google Sheets use Share → "Anyone with the link can view", or File → Share → Publish to web → CSV.`);
   if (n.src && n.src.uploads) out.push(`Includes ${n.src.uploads} uploaded report${n.src.uploads > 1 ? 's' : ''} saved <b>in this browser only</b>. Other people won't see ${n.src.uploads > 1 ? 'them' : 'it'}. <a href="#" data-clear="${esc(n.name)}">Remove uploads</a>`);
   return out;
+}
+
+/* ---------- "Update data" form: saves rows into the NAS's tab of the Google Sheet ---------- */
+const pad = v => String(v).padStart(2, '0');
+const scriptUrl = () => (state.data && state.data.script_url) || LS.get('nas-script-url', '');
+const blankRow = (share = '') => ({ department: share ? deptMap()[share] || '' : '', share, samples: '', copied_gb: '', pct_copied: '' });
+const fromRow = r => ({ department: hasShare(r) && deptMap()[r.share.toLowerCase()] || r.department, share: hasShare(r) ? r.share.toLowerCase() : '',
+  samples: r.samples ?? '', copied_gb: r.copied_gb ?? '', pct_copied: (() => { const p = rowPct(r); return p == null ? '' : +p.toFixed(2); })() });
+
+function openEditor(n) {
+  const rows = (n.transfer ? n.transfer.rows : []).map(fromRow);
+  state.ed = { date: isoDay(new Date()), rows: rows.length ? rows : [blankRow()] };
+  renderEditor(n);
+}
+
+function renderEditor(n) {
+  const e = state.ed, users = Object.keys(deptMap());
+  let box = $('#editor');
+  if (!box) { box = document.createElement('div'); box.id = 'editor'; document.body.appendChild(box); }
+  const hasDay = n.days.includes(e.date);
+  box.innerHTML = `<div class="ed-back"></div><div class="ed-card" role="dialog" aria-label="Update data">
+    <div class="phead"><div><h3>Update ${esc(n.name)} data</h3>
+      <div class="sub">Saved as new rows in the <b>${esc(n.sheet_tab || n.name)}</b> tab of the NAS STORAGE sheet, and shown on the dashboard for everyone. Saving a date that already exists replaces that date's rows.</div></div>
+      <button class="btn small" id="edClose">Close</button></div>
+    <div class="ed-bar">
+      <label>Date <input type="date" id="edDate" value="${e.date}"></label>${hasDay ? '<span class="sub">This date is already in the sheet; saving replaces it.</span>' : ''}
+      <span class="sp"></span>
+      <button class="btn small" id="edFile">${IC2.upload}Fill from Excel</button><input type="file" id="edFileIn" accept=".xlsx,.xls,.csv" hidden>
+      <button class="btn small" id="edAll">${ICONS.users}Add all departments</button>
+      <button class="btn small" id="edAdd">+ Add row</button>
+    </div>
+    <datalist id="edUsers">${users.map(u => `<option value="${esc(u)}">${esc(deptMap()[u])}</option>`).join('')}</datalist>
+    <div class="tbl ed-tbl"><table><thead><tr><th>Department</th><th>Users</th><th>Samples</th><th>Copied (GB)</th><th>% data copied</th><th></th></tr></thead>
+      <tbody>${e.rows.map((r, i) => `<tr data-i="${i}">
+        <td><input data-k="department" type="text" value="${esc(r.department)}"></td>
+        <td><input data-k="share" type="text" list="edUsers" style="min-width:100px" value="${esc(r.share)}" placeholder="e.g. user1"></td>
+        <td><input data-k="samples" type="number" min="0" step="1" value="${esc(r.samples)}"></td>
+        <td><input data-k="copied_gb" type="number" min="0" step="any" value="${esc(r.copied_gb)}"></td>
+        <td><input data-k="pct_copied" type="number" min="0" max="100" step="any" value="${esc(r.pct_copied)}" placeholder="%"></td>
+        <td><button class="x" data-del="${i}" title="Remove row">×</button></td></tr>`).join('')}</tbody>
+      <tfoot><tr id="edTot"></tr></tfoot></table></div>
+    <div class="ed-foot">
+      ${scriptUrl() ? '' : `<label class="grow">Apps Script web app URL <input type="url" id="edUrl" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(LS.get('nas-script-url', ''))}"></label>`}
+      <label>Edit key <input type="password" id="edKey" value="${esc(LS.get('nas-edit-key', ''))}" autocomplete="off"></label>
+      <span class="sp"></span><span id="edMsg" class="sub"></span>
+      ${hasDay ? `<button class="btn" id="edDel">Delete ${fmtFull(e.date)}</button>` : ''}
+      <button class="btn primary" id="edSave">${IC2.download}Save to sheet</button>
+    </div></div>`;
+  const recalc = () => {
+    const s = k => e.rows.reduce((t, r) => t + (+r[k] || 0), 0);
+    $('#edTot').innerHTML = `<td>Total (${e.rows.filter(r => r.department.trim()).length} rows)</td><td></td><td>${s('samples').toLocaleString()}</td><td>${s('copied_gb').toLocaleString()}</td><td></td><td></td>`;
+  };
+  recalc();
+  box.querySelectorAll('tbody input, tbody select').forEach(inp => inp.oninput = inp.onchange = () => {
+    const r = e.rows[+inp.closest('tr').dataset.i], k = inp.dataset.k;
+    r[k] = inp.value;
+    if (k === 'share') { const d = deptMap()[inp.value.trim().toLowerCase()], dep = inp.closest('tr').querySelector('[data-k=department]'); if (d && !dep.value) { dep.value = d; r.department = d; } }
+    recalc();
+  });
+  const close = () => { box.remove(); state.ed = null; };
+  box.querySelector('.ed-back').onclick = close;
+  $('#edClose').onclick = close;
+  $('#edDate').onchange = ev => { e.date = ev.target.value; renderEditor(n); };
+  $('#edAdd').onclick = () => { e.rows.push(blankRow()); renderEditor(n); };
+  $('#edAll').onclick = () => { const have = new Set(e.rows.map(r => (r.share || '').toLowerCase())); e.rows = e.rows.filter(r => Object.values(r).some(v => String(v).trim())); Object.keys(deptMap()).filter(u => !have.has(u)).forEach(u => e.rows.push(blankRow(u))); renderEditor(n); };
+  box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => { e.rows.splice(+b.dataset.del, 1); if (!e.rows.length) e.rows.push(blankRow()); renderEditor(n); });
+  $('#edFile').onclick = () => $('#edFileIn').click();
+  $('#edFileIn').onchange = async ev => {
+    const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
+    try {
+      const snaps = parseTransferSheet(await readFileRows(f), f.lastModified ? new Date(f.lastModified) : null), s = snaps[snaps.length - 1];
+      e.date = s.day; e.rows = s.rows.map(fromRow);
+      renderEditor(n); $('#edMsg').textContent = `Filled ${e.rows.length} rows from ${f.name}. Check them, then Save.`;
+    } catch (err) { alert('Could not read ' + f.name + ':\n' + err.message); }
+  };
+  const send = async body => {
+    const url = scriptUrl() || ($('#edUrl') && $('#edUrl').value.trim()), key = $('#edKey').value;
+    if (!url) throw new Error('The Apps Script web app URL is not set yet (README → "Connect the Google Sheet").');
+    if (!key) throw new Error('Type the edit key.');
+    if ($('#edUrl')) LS.set('nas-script-url', url);
+    LS.set('nas-edit-key', key);
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, key, tab: n.sheet_tab }) });
+    const res = await r.json().catch(() => ({ ok: false, error: 'Unexpected reply from the Apps Script (HTTP ' + r.status + ')' }));
+    if (!res.ok) throw new Error(res.error || 'Save failed');
+    return res;
+  };
+  $('#edSave').onclick = async () => {
+    const btn = $('#edSave'), rows = e.rows.filter(r => (r.department || '').trim());
+    if (!e.date) return alert('Choose the date.');
+    if (!rows.length) return alert('Add at least one department.');
+    if (rows.some(r => r.pct_copied !== '' && (+r.pct_copied < 0 || +r.pct_copied > 100))) return alert('% data copied must be between 0 and 100.');
+    btn.disabled = true; $('#edMsg').textContent = 'Saving…';
+    const num = v => v === '' || v == null ? '' : +v;
+    try {
+      const payload = rows.map(r => ({ department: r.department.trim(), share: (r.share || '').trim().toLowerCase(),
+        samples: num(r.samples), copied_gb: num(r.copied_gb), pct_copied: num(r.pct_copied) }));
+      await send({ action: 'save', date: e.date, rows: payload });
+      applySnapshot(n, { day: e.date, scanned_at: `${e.date}T00:00:00`, rows: payload.map(r => finishRow({ ...r, share: r.share || null,
+        samples: r.samples === '' ? null : r.samples, copied_gb: r.copied_gb === '' ? null : r.copied_gb, pct_copied: r.pct_copied === '' ? null : r.pct_copied })) });
+      close(); state.day = null; render(); toast(`Saved ${payload.length} rows for ${fmtFull(e.date)} to the ${n.sheet_tab} tab`);
+    } catch (err) { $('#edMsg').textContent = ''; alert('Not saved: ' + err.message); }
+    finally { btn.disabled = false; }
+  };
+  if ($('#edDel')) $('#edDel').onclick = async () => {
+    if (!confirm(`Delete all ${n.name} rows for ${fmtFull(e.date)} from the sheet?`)) return;
+    try { await send({ action: 'delete', date: e.date }); close(); toast('Deleted ' + fmtFull(e.date)); setTimeout(() => load().catch(() => {}), 1500); }
+    catch (err) { alert('Not deleted: ' + err.message); }
+  };
 }
 
 /* ---------- user -> department ---------- */
@@ -608,11 +761,11 @@ function renderLanding() {
       const tr = n.transfer && transferTotals(n.transfer);
       const top = userRows(n, st.day).sort((p, q) => q.bytes - p.bytes);
       const max = Math.max(1, ...top.map(u => u.bytes));
-      return (st.hasCap ? `<div class="cardstat"><div class="pct">${st.pct.toFixed(1)}%<small>used</small></div>${sparkline(n, a.c)}</div>
+      return (st.hasCap ? `<div class="cardstat"><div class="pct">${st.pct.toFixed(1)}%<small>used</small></div></div>
         <div class="meter"><div style="width:${Math.max(0.6, Math.min(100, st.pct))}%;background:var(${s.c})"></div></div>
         <div class="sub">${fmtBytes(st.used, 2)} of ${fmtBytes(st.total, 2)} · <b>${fmtBytes(st.free, 2)} free</b></div>`
-        : `<div class="cardstat"><div class="pct">${fmtBytes(st.used, 2)}<small>stored</small></div>${sparkline(n, a.c)}</div>`) + `
-        ${tr ? `<div class="sub" style="margin-top:4px">Transfer: <b>${tr.pctCopied.toFixed(1)}% of data copied</b> · ${tr.pctComplete.toFixed(1)}% of samples complete</div>` : ''}
+        : `<div class="cardstat"><div class="pct">${fmtBytes(st.used, 2)}<small>stored</small></div></div>`) + `
+        ${tr ? `<div class="sub" style="margin-top:4px">Transfer: ${tr.pctCopied != null ? `<b>${tr.pctCopied.toFixed(1)}% of data copied</b> · ` : ''}${fmtGB(tr.copied_gb)} copied · ${tr.samples.toLocaleString()} samples</div>` : ''}
         <div class="topu"><div class="l">Top users</div>${top.slice(0, 3).map(u => `<div class="tu"><span class="n" title="${esc(ulabel(u.user))}">${esc(ulabel(u.user))}</span><span class="tr"><span style="width:${u.bytes / max * 100}%"></span></span><span class="r">${fmtBytes(u.bytes, 1)}</span></div>`).join('')}</div>
         <div class="chips">
           <span class="chip"><span class="dot" style="background:var(${s.c})"></span>${s.l}</span>
@@ -637,21 +790,11 @@ function renderLanding() {
   $('#app').innerHTML = `
     <div class="hero-head">
       <div class="brand"><div class="logo"><span style="color:#fff">${ICONS.db}</span></div><h1>NAS Storage Monitor</h1></div>
-      <p>Storage usage, who is using how much, and day-wise history for every NAS drive.</p>
       <div class="hero-acts">
         <button class="btn" id="reload">${IC2.refresh}Refresh</button>
         <button class="btn" id="pdf">${IC2.print}Print / PDF</button>
         <button class="btn primary" id="xlsx">${IC2.download}Download Excel report</button>
       </div>
-    </div>
-    ${banner()}
-    <div class="panel overview">
-      <div><div class="l">NAS drives</div><div class="v">${d.nas.length}</div><div class="s">${d.nas.map(n => esc(n.name)).join(' · ')}</div></div>
-      <div><div class="l">Usable capacity</div><div class="v">${cap ? fmtBytes(cap, 0) : '–'}</div><div class="s">${raw ? fmtBytes(raw, 0) + ' raw' : ''}</div></div>
-      <div><div class="l">Used</div><div class="v">${fmtBytes(used, 2)}</div><div class="s">${cap ? (used / cap * 100).toFixed(1) + '% of usable' : ''}</div></div>
-      <div><div class="l">Free</div><div class="v">${cap ? fmtBytes(cap - used, 2) : '–'}</div><div class="s">across all drives</div></div>
-      <div><div class="l">Users / folders</div><div class="v">${users}</div><div class="s">with data on a NAS</div></div>
-      <div><div class="l">Last updated</div><div class="v" style="font-size:18px">${updated ? fmtFull(updated.slice(0, 10)) : '–'}</div><div class="s">${updated ? new Date(updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</div></div>
     </div>
     <div class="cards">${cards}</div>
 
@@ -661,8 +804,8 @@ function renderLanding() {
         <div class="legend2">${d.nas.map((n, i) => `<span><span class="swatch" style="background:var(${ACCENTS[i % ACCENTS.length].c})"></span>${esc(n.name)}${n.demo ? ' (sample)' : ''}</span>`).join('')}</div>
         <div class="chart" id="allChart"></div></div>
       ${transfers.map(n => { const T = transferTotals(n.transfer); return `<div class="panel big"><h3>${esc(n.name)} transfer progress</h3>
-        <div class="sub">As of ${fmtFull(n.transfer.day)} · ${fmtGB(T.copied_gb)} of ${fmtGB(T.size_gb)} copied (${T.pctCopied.toFixed(1)}%) · ${T.complete.toLocaleString()} of ${T.samples.toLocaleString()} samples complete</div>
-        <div class="hbars mt" style="--accent:var(--s1)">${n.transfer.rows.filter(r => r.share && r.size_gb).sort((p, q) => q.copied_gb / q.size_gb - p.copied_gb / p.size_gb).map(r => { const p = r.copied_gb / r.size_gb * 100; return `<div class="hbar" style="cursor:default"><div class="n" title="${esc(deptLabel(r))}">${esc(deptLabel(r))}</div><div class="tr"><div style="width:${p}%"></div></div><div class="r">${p.toFixed(1)}% · ${fmtGB(r.pending_gb)} left</div></div>`; }).join('')}</div></div>`; }).join('')}
+        <div class="sub">As of ${fmtFull(n.transfer.day)} · ${fmtGB(T.copied_gb)} copied${T.pctCopied != null ? ` (${T.pctCopied.toFixed(1)}% overall)` : ''} · ${T.samples.toLocaleString()} samples</div>
+        <div class="hbars mt" style="--accent:var(--s1)">${n.transfer.rows.filter(r => hasShare(r) && rowPct(r) != null).sort((p, q) => rowPct(q) - rowPct(p)).map(r => { const p = rowPct(r); return `<div class="hbar" style="cursor:default"><div class="n" title="${esc(deptLabel(r))}">${esc(deptLabel(r))}</div><div class="tr"><div style="width:${Math.min(100, p)}%"></div></div><div class="r">${p.toFixed(1)}% · ${fmtGB(r.copied_gb)}</div></div>`; }).join('')}</div></div>`; }).join('')}
     </div>
 
     <div class="panel big mt" style="margin-top:20px">
@@ -743,7 +886,7 @@ async function downloadExcel(list) {
         n.demo ? 'Sample data' : n.src?.sheet?.ok ? 'Live Google Sheet' : n.src?.uploads ? 'Uploaded report' : 'Saved report',
         TBv(st.total), TBv(n.raw_capacity), TBv(st.used), TBv(st.free), st.pct == null ? null : +st.pct.toFixed(2), statusOf(st.pct).l,
         GB(st.d1), GB(st.d7), GB(st.d30), st.rate == null ? null : GB(st.rate), st.hasCap && st.rate > 0 ? Math.floor(st.free / st.rate) : null, st.userCount,
-        T ? T.samples : null, T ? T.complete : null, T ? +T.pctComplete.toFixed(1) : null, T ? T.size_gb : null, T ? T.copied_gb : null, T ? T.pending_gb : null, T ? +T.pctCopied.toFixed(1) : null]);
+        T ? T.samples : null, T ? T.complete : null, T && T.pctComplete != null ? +T.pctComplete.toFixed(1) : null, T ? T.size_gb : null, T ? T.copied_gb : null, T ? T.pending_gb : null, T && T.pctCopied != null ? +T.pctCopied.toFixed(1) : null]);
     }
     add('Summary', sum, [14, 17, 18, 12, 12, 10, 10, 8, 16, 12, 12, 12, 12, 12, 10, 9, 10, 10, 12, 12, 12, 10]);
 
@@ -762,12 +905,9 @@ async function downloadExcel(list) {
       const names = Object.keys(n.users).sort((p, q) => (n.users[q].bytes.at(-1) || 0) - (n.users[p].bytes.at(-1) || 0));
       add(`${tag} user history (GB)`, [['Date', ...names.map(ulabel)], ...n.days.map((day, k) => [day, ...names.map(u => GB(n.users[u].bytes[k]))])], [12, ...names.map(u => Math.max(10, Math.min(30, u.length + 2)))]);
       if (n.transfer) {
-        add(`${tag} transfer`, [[`${n.name} department transfer status as of ${n.transfer.day}`], [],
-          ['Department', 'Dest. share', 'Checked?', 'Samples', 'Complete', 'Partial', 'Not started', 'Pending samples', 'No files', '% samples complete', 'Size (GB)', 'Copied (GB)', 'Pending (GB)', '% data copied'],
-          ...n.transfer.rows.map(r => { const ok = !!r.share; return [deptLabel(r), r.share || '-', r.checked, r.samples, ok ? r.complete : 'n/a', ok ? r.partial : 'n/a', ok ? r.not_started : 'n/a', ok ? r.pending : 'n/a', r.no_files,
-            ok && r.samples - r.no_files ? +(r.complete / (r.samples - r.no_files) * 100).toFixed(1) : 'n/a', r.size_gb, ok ? r.copied_gb : 'n/a', ok ? r.pending_gb : 'n/a', ok && r.size_gb ? +(r.copied_gb / r.size_gb * 100).toFixed(1) : 'n/a']; }),
-          (() => { const T = transferTotals(n.transfer); return ['TOTAL (checked)', '', '', T.samples, T.complete, T.partial, T.not_started, T.pending, T.no_files, +T.pctComplete.toFixed(1), T.size_gb, T.copied_gb, T.pending_gb, +T.pctCopied.toFixed(1)]; })()],
-          [26, 11, 22, 9, 9, 8, 11, 14, 9, 16, 10, 11, 12, 13]);
+        const tc = transferCols(n.transfer.rows), raw = (c, r) => { const v = c[1](r); return v == null || v === '–' ? '' : typeof v === 'number' ? +v.toFixed(2) : v; };
+        add(`${tag} transfer`, [[`${n.name} department transfer status as of ${n.transfer.day}`], [], ['Date', ...tc.map(c => c[0])],
+          ...n.transfer.rows.map(r => [n.transfer.day, ...tc.map(c => raw(c, r))])], [12, ...tc.map(c => c[2] === 'l' ? 24 : 14)]);
       }
     }
     const who = list.length === 1 ? list[0].name.replace(/\s+/g, '-') : 'all-NAS';
@@ -791,42 +931,46 @@ const RANGES = [[7, 'Last 7 days'], [30, 'Last 30 days'], [90, 'Last 90 days'], 
 
 const fmtGB = v => v == null ? 'n/a' : Math.round(v).toLocaleString() + ' GB';
 const pctTxt = v => v == null ? 'n/a' : v.toFixed(1) + '%';
+const hasShare = r => !!(r.share && r.share !== '-');
+/* % copied for a row: the sheet's own "% data copied" if present, else copied / size */
+const rowPct = r => r.pct_copied != null ? r.pct_copied : hasShare(r) && r.size_gb ? r.copied_gb / r.size_gb * 100 : null;
+/* Columns of the transfer table; only columns with at least one value are shown. */
+const TCOLS = [
+  ['Department', r => deptLabel(r), 'l'], ['Users', r => r.share || '–', 'l'], ['Checked?', r => r.checked || '', 'l'],
+  ['Samples', r => r.samples], ['Complete', r => r.complete], ['Partial', r => r.partial], ['Not started', r => r.not_started],
+  ['Pending samples', r => r.pending], ['No files', r => r.no_files],
+  ['Size (GB)', r => r.size_gb_given ?? (r.size_est ? null : r.size_gb)], ['Copied (GB)', r => r.copied_gb], ['Pending (GB)', r => r.pending_gb_given ?? null],
+  ['% data copied', r => rowPct(r), 'pct'],
+];
+function transferCols(rows) { return TCOLS.filter(([, f]) => rows.some(r => { const v = f(r); return v != null && v !== '' && v !== '–'; })); }
 function transferTotals(t) {
-  const rows = t.rows.filter(r => r.share);
-  const sum = k => rows.reduce((s, r) => s + (r[k] || 0), 0);
-  const tot = { samples: sum('samples'), complete: sum('complete'), partial: sum('partial'), not_started: sum('not_started'),
-    pending: sum('pending'), no_files: sum('no_files'), size_gb: sum('size_gb'), copied_gb: sum('copied_gb'), pending_gb: sum('pending_gb') };
-  tot.pctComplete = tot.samples - tot.no_files ? tot.complete / (tot.samples - tot.no_files) * 100 : 0;
-  tot.pctCopied = tot.size_gb ? tot.copied_gb / tot.size_gb * 100 : 0;
+  const rows = t.rows.filter(hasShare);
+  const sum = k => rows.reduce((s, r) => s + (r[k] || 0), 0), any = k => rows.some(r => r[k] != null);
+  const tot = { rows: rows.length, samples: sum('samples'), complete: any('complete') ? sum('complete') : null, partial: sum('partial'), not_started: sum('not_started'),
+    pending: sum('pending'), no_files: sum('no_files'), copied_gb: sum('copied_gb'),
+    size_gb: rows.every(r => r.size_gb != null) ? sum('size_gb') : null, size_est: rows.some(r => r.size_est), checked: t.rows.filter(r => /^(yes|checked)/i.test(r.checked || '')).length };
+  tot.pending_gb = tot.size_gb != null ? Math.max(0, tot.size_gb - tot.copied_gb) : null;
+  tot.pctComplete = tot.complete != null && tot.samples - tot.no_files > 0 ? tot.complete / (tot.samples - tot.no_files) * 100 : null;
+  tot.pctCopied = tot.size_gb ? tot.copied_gb / tot.size_gb * 100 : null;
   return tot;
 }
 function transferPanel(n, a) {
-  const t = n.transfer, T = transferTotals(t);
-  const row = r => {
-    const ok = !!r.share;
-    const pc = ok && r.samples - r.no_files ? r.complete / (r.samples - r.no_files) * 100 : null;
-    const pd = ok && r.size_gb ? r.copied_gb / r.size_gb * 100 : null;
-    const na = v => ok ? (v ?? 0).toLocaleString() : 'n/a';
-    return `<tr><td>${esc(deptLabel(r))}</td><td style="text-align:left">${esc(r.share || '–')}</td><td style="text-align:left">${esc(r.checked || '')}</td>
-      <td>${(r.samples ?? 0).toLocaleString()}</td><td>${na(r.complete)}</td><td>${na(r.partial)}</td><td>${na(r.not_started)}</td><td>${na(r.pending)}</td><td>${(r.no_files ?? 0).toLocaleString()}</td>
-      <td>${pctTxt(pc)}</td><td>${fmtGB(r.size_gb)}</td><td>${ok ? fmtGB(r.copied_gb) : 'n/a'}</td><td>${ok ? fmtGB(r.pending_gb) : 'n/a'}</td>
-      <td style="min-width:96px">${pd == null ? 'n/a' : `<span class="ubar" style="width:${Math.round(pd * 0.35)}px;background:var(${a.c})"></span>${pd.toFixed(1)}%`}</td></tr>`;
-  };
+  const t = n.transfer, T = transferTotals(t), cols = transferCols(t.rows);
+  const cell = (c, r) => { const v = c[1](r); if (c[2] === 'pct') return v == null ? 'n/a' : `<span class="ubar" style="width:${Math.round(Math.min(100, v) * 0.35)}px;background:var(${a.c})"></span>${v.toFixed(1)}%`;
+    return v == null || v === '' ? (c[2] === 'l' ? '' : 'n/a') : typeof v === 'number' ? (/GB/.test(c[0]) ? fmtGB(v) : v.toLocaleString()) : esc(v); };
+  const tot = { 'Department': 'Total', 'Samples': T.samples.toLocaleString(), 'Complete': T.complete == null ? '' : T.complete.toLocaleString(), 'Copied (GB)': fmtGB(T.copied_gb),
+    'Size (GB)': T.size_gb == null ? '' : fmtGB(T.size_gb), '% data copied': T.pctCopied == null ? '' : T.pctCopied.toFixed(1) + '%' };
+  const strip = [['Departments', t.rows.length, `${T.rows} with a user`], ...(t.rows.some(r => r.checked) ? [['Checked', T.checked, `of ${t.rows.length}`]] : []), ['Samples', T.samples.toLocaleString(), 'departments with a user'],
+    ['Data copied', fmtGB(T.copied_gb), T.size_gb != null ? 'of ' + (T.size_est ? '~' : '') + fmtGB(T.size_gb) + (T.size_est ? ' (from the % column)' : '') : 'to the NAS shares']];
+  if (T.pctCopied != null) strip.push(['% data copied', T.pctCopied.toFixed(1) + '%', T.size_gb_note || 'overall']);
   return `<div class="panel big" style="margin-bottom:20px">
     <div class="phead"><div><h3>Department transfer status</h3>
-      <div class="sub">As of ${fmtFull(t.day)}${n.scanned_at && n.scanned_at.startsWith(t.day) ? ' ' + new Date(n.scanned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}. A file counts as copied when a file with the same name is in the department's destination share (unfinished .part files are not counted).</div></div></div>
-    <div class="strip">
-      <div><div class="l">Samples</div><div class="v">${T.samples.toLocaleString()}</div><div class="s">checked departments</div></div>
-      <div><div class="l">Complete</div><div class="v">${T.complete.toLocaleString()}</div><div class="s">${T.pctComplete.toFixed(1)}% of samples</div></div>
-      <div><div class="l">Pending samples</div><div class="v">${T.pending.toLocaleString()}</div><div class="s">${T.partial} partial · ${T.not_started} not started</div></div>
-      <div><div class="l">Data copied</div><div class="v">${fmtGB(T.copied_gb)}</div><div class="s">of ${fmtGB(T.size_gb)}</div></div>
-      <div class="tot"><div class="l">% data copied</div><div class="v">${T.pctCopied.toFixed(1)}%</div><div class="s">${fmtGB(T.pending_gb)} pending</div></div>
-    </div>
+      <div class="sub">As of ${fmtFull(t.day)}. From the ${esc(n.sheet_tab || n.name)} tab of the NAS STORAGE sheet.</div></div></div>
+    <div class="strip">${strip.map(([l, v, s], i) => `<div class="${i === strip.length - 1 ? 'tot' : ''}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('')}</div>
     <div class="tbl" style="max-height:none"><table class="ttable">
-      <thead><tr><th>Department</th><th style="text-align:left">Dest. share</th><th style="text-align:left">Checked?</th><th>Samples</th><th>Complete</th><th>Partial</th><th>Not started</th><th>Pending</th><th>No files</th><th>% done</th><th>Size</th><th>Copied</th><th>Pending</th><th>% copied</th></tr></thead>
-      <tbody>${t.rows.map(row).join('')}</tbody>
-      <tfoot><tr><td>Total (checked)</td><td></td><td></td><td>${T.samples.toLocaleString()}</td><td>${T.complete}</td><td>${T.partial}</td><td>${T.not_started}</td><td>${T.pending.toLocaleString()}</td><td>${T.no_files}</td>
-        <td>${T.pctComplete.toFixed(1)}%</td><td>${fmtGB(T.size_gb)}</td><td>${fmtGB(T.copied_gb)}</td><td>${fmtGB(T.pending_gb)}</td><td>${T.pctCopied.toFixed(1)}%</td></tr></tfoot>
+      <thead><tr>${cols.map(c => `<th${c[2] === 'l' ? ' style="text-align:left"' : ''}>${c[0]}</th>`).join('')}</tr></thead>
+      <tbody>${t.rows.map(r => `<tr>${cols.map(c => `<td${c[2] === 'l' ? ' style="text-align:left"' : ''}${c[2] === 'pct' ? ' style="min-width:96px"' : ''}>${cell(c, r)}</td>`).join('')}</tr>`).join('')}</tbody>
+      <tfoot><tr>${cols.map(c => `<td${c[2] === 'l' ? ' style="text-align:left"' : ''}>${tot[c[0]] ?? ''}</td>`).join('')}</tr></tfoot>
     </table></div></div>`;
 }
 function gauge(pct, color) {
@@ -852,16 +996,13 @@ function renderModule(name) {
     <div class="mbar">
       <div class="ttl"><div class="logo"><span style="color:#fff">${ICONS.db}</span></div>
         <div><h1>${esc(n.name)}</h1><div class="sub">${esc(n.description || n.path)}</div></div></div>
-      <nav class="switch">${d.nas.map(x => `<a href="#/nas/${encodeURIComponent(x.name)}" ${x.name === n.name ? 'aria-current="page"' : ''}>${esc(x.name)}</a>`).join('')}</nav>
       <div class="acts"><button class="btn" id="reload">${IC2.refresh}Refresh</button>
-        <button class="btn" id="sheetBtn" title="Connect a Google Sheet as a live data source">${IC2.sheet}Live sheet</button>
-        <button class="btn" id="upBtn" title="Upload the transfer status Excel / CSV">${IC2.upload}Upload Excel</button>
-        <input type="file" id="upFile" accept=".xlsx,.xls,.csv" hidden>
+        <button class="btn green" id="edit" title="Add or change figures; saved to the Google Sheet">${IC2.sheet}Update data</button>
         <button class="btn" id="pdf" title="Print or save as PDF">${IC2.print}PDF</button>
         <button class="btn primary" id="csv">${IC2.download}Download Excel</button></div>
     </div>
     <a class="btn small" href="#">${IC2.home}Back</a>${banner(n)}`;
-  if (!st) { $('#app').innerHTML = head + '<div class="panel empty mt">No scans recorded for this NAS yet.</div>'; bindHead(n); return; }
+  if (!st) { $('#app').innerHTML = head + `<div class="panel empty mt" style="padding:48px">No data for ${esc(n.name)} yet.<br><br><button class="btn green" id="edit2">${IC2.sheet}Add the first report</button></div>`; bindHead(n); $('#edit2').onclick = () => openEditor(n); return; }
   const s = statusOf(st.pct), L = st.L, prevDay = L > 0 ? n.days[L - 1] : null;
   const sinceLast = L > 0 ? n.used[L] - n.used[L - 1] : null;
   const j30 = (() => { const j = idxOnOrBefore(n.days, shiftDay(st.day, 30)); return j >= 0 && j < L ? j : (L > 0 ? 0 : -1); })();
@@ -938,9 +1079,8 @@ function renderModule(name) {
 
 function bindHead(n) {
   $('#reload').onclick = () => load().then(() => toast('Data refreshed')).catch(e => alert(e.message));
-  $('#upBtn').onclick = () => $('#upFile').click();
-  $('#upFile').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) onUpload(n, f); };
-  $('#sheetBtn').onclick = async () => {
+  $('#edit').onclick = () => openEditor(n);
+  if (false) $('#sheetBtn').onclick = async () => {
     const cur = LS.get(sheetKey(n.name), null) || n.sheet_url || '';
     const url = prompt(`Paste the Google Sheet link for ${n.name}.\n\nThe sheet must be shared as "Anyone with the link can view" (or published to the web). It needs a "Department" header row with the same columns as the transfer status report. To keep day-wise history in one sheet, add a "Date" column.\n\nThis connects the sheet in this browser. To show it for everyone, set "sheet_url" for this NAS in config.json.\nLeave empty to disconnect.`, cur);
     if (url === null) return;

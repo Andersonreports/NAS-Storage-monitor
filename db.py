@@ -100,6 +100,7 @@ def _nas_data(conn, nas, since):
         "capacity": cap,
         "raw_capacity": nas.get("raw_capacity_bytes"),
         "sheet_url": nas.get("sheet_url"),
+        "sheet_tab": nas.get("sheet_tab"),
         "days": day_list,
         "total": total,
         "used": [r["used_bytes"] for r in snaps],
@@ -129,6 +130,7 @@ def build_data(cfg, days=400):
     return {
         "generated_at": dt.datetime.now().isoformat(timespec="seconds"),
         "thresholds": cfg.get("thresholds", {"warning": 80, "critical": 90}),
+        "script_url": cfg.get("sheet_script_url"),
         "user_departments": {k.lower(): v for k, v in cfg.get("users", {}).items()},
         "nas": out,
     }

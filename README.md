@@ -15,39 +15,31 @@ Live page: https://andersonreports.github.io/NAS-Storage-monitor/
 | `config.json` | NAS names, mount paths, capacity, how users are detected, alert thresholds. |
 | `seed_demo.py` | Sample data for any NAS marked `"demo": true` (currently NGS NAS). |
 
-## 1. Update the data (no commands needed)
+## 1. Update the data (from the dashboard)
 
-Open a NAS page on the dashboard and use the buttons at the top right.
+Each NAS page has an **Update data** button. It opens a form with the latest figures
+(Department | Users | Samples | Copied (GB) | % data copied). Change them, type the edit key, and press
+**Save to sheet**: the rows are written to that NAS's tab (CMC or NGS) of the
+[NAS STORAGE sheet](https://docs.google.com/spreadsheets/d/1m4-yM4mn1kzAbfCiYznvXrwgx8yUc-Wm9gTus6LHDd8/edit)
+with the chosen date. Every date is kept, which gives the day-wise history; saving a date again replaces it.
+**Fill from Excel** loads a report file into the form first.
 
-**Live sheet (recommended, everyone sees it).** Connected sheet: [NAS STORAGE](https://docs.google.com/spreadsheets/d/1m4-yM4mn1kzAbfCiYznvXrwgx8yUc-Wm9gTus6LHDd8/edit),
-tab **CMC** → CMC NAS, tab **NGS** → NGS NAS. Starter contents for each tab are in `sheet_templates/`.
-Don't delete or recreate the tabs: the dashboard finds them by tab ID.
+Each tab has the columns `Date | Department | Users | Samples | Copied (GB) | % data copied`.
+The **Departments** tab maps usernames (user1 …) to department names.
 
- Keep the transfer status in a Google Sheet with the same
-columns as the report (`Department`, `Dest. share`, `Checked?`, `Samples`, … `Size (GB)`, `Copied (GB)`, `Pending (GB)`).
-- Share it as *Anyone with the link can view*, or use *File → Share → Publish to web → CSV*.
-- Put the link in `config.json` as `"sheet_url"` for that NAS. You can edit the file on github.com with the pencil icon.
-  The dashboard reads the sheet each time someone opens it.
-- For day-wise history in one sheet, add a `Date` column and append each day's rows. Otherwise put
-  "As of 14-Oct-2026 06:41" above the header; each new date adds a point to the history.
-- The **Live sheet** button connects a sheet in your own browser only, which is useful for trying it first.
+### Connect the Google Sheet (one time)
 
-**Upload Excel.** Choose the report `.xlsx` / `.csv`. The dashboard reads the "As of …" date and the department
-table and adds it to the history. Uploads are kept **in that browser only**, so other people (for example your TL)
-won't see them. Use the live sheet to share.
+The page writes to the sheet through a small Google Apps Script (`apps-script/Code.gs`):
 
-Staff names written as "Haematology - Name" are shown as "Haematology - user1" (the destination share),
-because the page is public.
+1. In the sheet: **Extensions → Apps Script**. Replace the code with `apps-script/Code.gs`, change `EDIT_KEY`, save.
+2. Select **setup** in the function list and click **Run**; allow access. This adds the Date column to the existing
+   rows (dated 2026-10-07), formats the CMC and NGS tabs and creates the Departments tab. No rows are deleted.
+3. **Deploy → New deployment →** type **Web app**, *Execute as: Me*, *Who has access: Anyone* → **Deploy**.
+4. Put the Web app URL (ends in `/exec`) in `config.json` as `sheet_script_url`.
 
-Set `capacity_bytes` for CMC NAS in `config.json` (for example `35184372088832` for 32 TB) to turn on
-% used, free space and the days-until-full projection.
+Only people who know the edit key can save. Anyone with the dashboard link can still view it.
 
-### Command-line alternative
-
-```bash
-python3 import_transfer.py --nas "CMC NAS" --at "2026-10-07 06:41" imports/cmc_transfer_2026-10-07.csv
-python3 export.py && git add data.json imports && git commit -m "Update storage data" && git push
-```
+Set `capacity_bytes` per NAS in `config.json` (currently 130 TB usable, 160 TB raw).
 
 ## 2. Mount the NAS shares (read-only is enough)
 

@@ -24,7 +24,8 @@
       "description": "CMC department shares: Cytogenetics, Haematology, Medical Genetics, Molecular Endocrinology and Nephrology.",
       "capacity_bytes": 142936511610880,
       "raw_capacity_bytes": 175921860444160,
-      "sheet_url": "https://docs.google.com/spreadsheets/d/1m4-yM4mn1kzAbfCiYznvXrwgx8yUc-Wm9gTus6LHDd8/edit#gid=1752430691"
+      "sheet_url": "https://docs.google.com/spreadsheets/d/1m4-yM4mn1kzAbfCiYznvXrwgx8yUc-Wm9gTus6LHDd8/edit#gid=1752430691",
+      "sheet_tab": "CMC"
     },
     {
       "name": "NGS NAS",
@@ -38,11 +39,11 @@
         ".snapshot",
         "lost+found"
       ],
-      "description": "NGS server storage. Sample data is shown until the NGS tab of the live sheet is filled in.",
-      "demo": true,
+      "description": "NGS server storage.",
       "capacity_bytes": 142936511610880,
       "raw_capacity_bytes": 175921860444160,
-      "sheet_url": "https://docs.google.com/spreadsheets/d/1m4-yM4mn1kzAbfCiYznvXrwgx8yUc-Wm9gTus6LHDd8/edit#gid=0"
+      "sheet_url": "https://docs.google.com/spreadsheets/d/1m4-yM4mn1kzAbfCiYznvXrwgx8yUc-Wm9gTus6LHDd8/edit#gid=0",
+      "sheet_tab": "NGS"
     }
   ],
   "users": {
@@ -57,5 +58,6 @@
     "user9": "Neurophysiology",
     "germline": "Germline",
     "somatic": "Somatic"
-  }
+  },
+  "sheet_script_url": null
 }
