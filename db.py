@@ -97,6 +97,8 @@ def _nas_data(conn, nas, since):
         "path": nas["path"],
         "description": nas.get("description", ""),
         "demo": bool(nas.get("demo")),
+        "capacity": cap,
+        "sheet_url": nas.get("sheet_url"),
         "days": day_list,
         "total": total,
         "used": [r["used_bytes"] for r in snaps],

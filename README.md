@@ -15,19 +15,35 @@ Live page: https://andersonreports.github.io/NAS-Storage-monitor/
 | `config.json` | NAS names, mount paths, capacity, how users are detected, alert thresholds. |
 | `seed_demo.py` | Sample data for any NAS marked `"demo": true` (currently NGS NAS). |
 
-## 1. Update the data
+## 1. Update the data (no commands needed)
 
-```bash
-# CMC transfer report (use share names, not staff names: the GitHub page is public)
-python3 import_transfer.py --nas "CMC NAS" --at "2026-10-07 06:41" imports/cmc_transfer_2026-10-07.csv
-python3 export.py                 # rebuild data.json
-git add data.json imports && git commit -m "Update storage data" && git push
-```
+Open a NAS page on the dashboard and use the buttons at the top right.
+
+**Live sheet (recommended, everyone sees it).** Keep the transfer status in a Google Sheet with the same
+columns as the report (`Department`, `Dest. share`, `Checked?`, `Samples`, … `Size (GB)`, `Copied (GB)`, `Pending (GB)`).
+- Share it as *Anyone with the link can view*, or use *File → Share → Publish to web → CSV*.
+- Put the link in `config.json` as `"sheet_url"` for that NAS. You can edit the file on github.com with the pencil icon.
+  The dashboard reads the sheet each time someone opens it.
+- For day-wise history in one sheet, add a `Date` column and append each day's rows. Otherwise put
+  "As of 14-Oct-2026 06:41" above the header; each new date adds a point to the history.
+- The **Live sheet** button connects a sheet in your own browser only, which is useful for trying it first.
+
+**Upload Excel.** Choose the report `.xlsx` / `.csv`. The dashboard reads the "As of …" date and the department
+table and adds it to the history. Uploads are kept **in that browser only**, so other people (for example your TL)
+won't see them. Use the live sheet to share.
+
+Staff names written as "Haematology - Name" are shown as "Haematology - user1" (the destination share),
+because the page is public.
 
 Set `capacity_bytes` for CMC NAS in `config.json` (for example `35184372088832` for 32 TB) to turn on
 % used, free space and the days-until-full projection.
 
-To preview locally: `python3 server.py` and open http://localhost:8080
+### Command-line alternative
+
+```bash
+python3 import_transfer.py --nas "CMC NAS" --at "2026-10-07 06:41" imports/cmc_transfer_2026-10-07.csv
+python3 export.py && git add data.json imports && git commit -m "Update storage data" && git push
+```
 
 ## 2. Mount the NAS shares (read-only is enough)
 

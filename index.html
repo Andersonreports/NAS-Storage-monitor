@@ -135,13 +135,15 @@ tfoot td { font-weight: 700; border-bottom: 0; }
 .mt { margin-top: 16px; }
 .themebtn { position: fixed; right: 16px; bottom: 16px; font-size: 12px; padding: 6px 10px; box-shadow: var(--shadow); }
 /* ---------- module v2 (NGS-style) ---------- */
-.mbar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; padding: 28px 0 22px; }
+.mbar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 16px; padding: 28px 0 22px; }
 .mbar .ttl { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .mbar .logo { width: 48px; height: 48px; border-radius: 12px; }
 .mbar .logo svg { width: 24px; height: 24px; }
 .mbar h1 { font-size: 21px; font-weight: 800; margin: 0; letter-spacing: -0.01em; }
-.mbar .acts { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
-@media (max-width: 900px) { .mbar { grid-template-columns: 1fr; } .mbar .acts { justify-content: flex-start; } }
+.mbar .acts { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.mbar .acts .btn { padding: 8px 12px; }
+@media (max-width: 1200px) { .mbar { grid-template-columns: 1fr auto; } .mbar .acts { grid-column: 1 / -1; justify-content: flex-start; } }
+@media (max-width: 700px) { .mbar { grid-template-columns: 1fr; } }
 .switch { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 4px; box-shadow: var(--shadow); }
 .switch a { padding: 8px 18px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; color: var(--ink); }
 .switch a[aria-current="page"] { background: var(--s1); color: #fff; }
@@ -187,6 +189,10 @@ tfoot td { font-weight: 700; border-bottom: 0; }
 .hbar .tr > div { height: 100%; border-radius: 7px; background: var(--accent); }
 .hbar .r { font-size: 13px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 128px; text-align: right; }
 .legend2 { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin: 14px 0 6px; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: var(--page); padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 13px; z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,.2); max-width: calc(100% - 32px); }
+.banner a { color: var(--s1); font-weight: 600; }
+.banner.info { border-left-color: var(--s1); }
+.ttable th, .ttable td { padding: 8px 6px; }
 </style>
 </head>
 <body>
@@ -359,14 +365,210 @@ function sparkline(n, color) {
   return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-label="Last 30 days trend"><polyline points="${p}" fill="none" stroke="${css(color)}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
 
+/* ---------- spreadsheet sources: live Google Sheet + Excel upload ---------- */
+const GiB = 1024 ** 3;
+const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+const pad2 = v => String(v).padStart(2, '0');
+const isoDay = dt => `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
+const isoAt = dt => `${isoDay(dt)}T${pad2(dt.getHours())}:${pad2(dt.getMinutes())}:00`;
+
+function parseWhen(v) {
+  if (v == null || v === '') return null;
+  if (v instanceof Date) return v;
+  if (typeof v === 'number' && v > 20000 && v < 80000) return new Date(Math.round((v - 25569) * 864e5) + new Date().getTimezoneOffset() * 6e4);
+  const s = String(v);
+  let m = s.match(/(\d{1,2})[-\s/]([A-Za-z]{3})[A-Za-z]*[-\s/,]+(\d{4})(?:\D+(\d{1,2}):(\d{2}))?/);
+  if (m && MONTHS[m[2].toLowerCase()] != null) return new Date(+m[3], MONTHS[m[2].toLowerCase()], +m[1], +(m[4] || 0), +(m[5] || 0));
+  m = s.match(/(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{1,2}):(\d{2}))?/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0));
+  m = s.match(/(\d{1,2})[/.](\d{1,2})[/.](\d{4})(?:\D+(\d{1,2}):(\d{2}))?/);   // dd/mm/yyyy
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0));
+  return null;
+}
+function cellNum(v) {
+  if (v == null) return null;
+  if (typeof v === 'number') return v;
+  const s = String(v).replace(/[,\s%]/g, '');
+  return s === '' || /^n\/?a$/i.test(s) || s === '-' ? null : (isNaN(+s) ? null : +s);
+}
+const COLS = [
+  ['date', h => /^(date|as ?of|day|report date)$/.test(h)],
+  ['department', h => /^department/.test(h)],
+  ['share', h => /dest|share/.test(h)],
+  ['checked', h => /checked/.test(h)],
+  ['pending_gb', h => /pending/.test(h) && /gb/.test(h)],
+  ['size_gb', h => /^size/.test(h)],
+  ['copied_gb', h => /^copied/.test(h)],
+  ['samples', h => /^samples$|^total samples$/.test(h)],
+  ['complete', h => /^complete/.test(h)],
+  ['partial', h => /^partial/.test(h)],
+  ['not_started', h => /not ?started/.test(h)],
+  ['pending', h => /^pending/.test(h) && !/%/.test(h)],
+  ['no_files', h => /no files/.test(h)],
+];
+/* Turn a sheet (array of rows) into [{day, scanned_at, rows}] snapshots. */
+function parseTransferSheet(aoa, fallback) {
+  const norm = v => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const h = aoa.findIndex(r => r.some(c => /^department/.test(norm(c))));
+  if (h < 0) throw new Error('No "Department" header row found in the sheet.');
+  const map = {};
+  aoa[h].forEach((c, i) => { const k = COLS.find(([key, t]) => !(key in map) && t(norm(c))); if (k) map[k[0]] = i; });
+  if (map.copied_gb == null && map.size_gb == null) throw new Error('Could not find the "Size (GB)" / "Copied (GB)" columns.');
+  let asOf = null;
+  for (const r of aoa.slice(0, h)) for (const c of r) { const t = /as of/i.test(String(c)) && parseWhen(c); if (t) { asOf = t; break; } }
+  asOf = asOf || fallback || new Date();
+  const groups = new Map();
+  for (const r of aoa.slice(h + 1)) {
+    const dept = String(r[map.department] ?? '').trim();
+    if (!dept || /^total/i.test(dept)) continue;
+    const when = map.date != null ? parseWhen(r[map.date]) || asOf : asOf;
+    const share = String(r[map.share] ?? '').trim();
+    const hasShare = share && share !== '-' && !/^n\/?a$/i.test(share);
+    const row = { department: dept, share: hasShare ? share : null, checked: String(r[map.checked] ?? '').trim() };
+    for (const k of ['samples', 'complete', 'partial', 'not_started', 'pending', 'no_files']) row[k] = map[k] != null ? cellNum(r[map[k]]) : null;
+    for (const k of ['size_gb', 'copied_gb', 'pending_gb']) row[k] = map[k] != null ? cellNum(r[map[k]]) : null;
+    // the page is public: "Haematology - <staff name>" becomes "Haematology - <share>"
+    const m = hasShare && dept.match(/^(.*?)\s+[-–]\s+(.+)$/);
+    if (m && m[2].toLowerCase() !== share.toLowerCase()) row.department = `${m[1]} - ${share}`;
+    const key = isoDay(when);
+    if (!groups.has(key)) groups.set(key, { day: key, scanned_at: isoAt(when), rows: [] });
+    groups.get(key).rows.push(row);
+  }
+  if (!groups.size) throw new Error('The sheet has a header row but no department rows.');
+  return [...groups.values()].sort((p, q) => p.day.localeCompare(q.day));
+}
+
+/* Merge one snapshot into a NAS's day-aligned arrays. */
+function applySnapshot(n, snap) {
+  if (n.demo) Object.assign(n, { demo: false, days: [], total: [], used: [], free: [], users: {}, transfer: null });
+  let k = n.days.indexOf(snap.day);
+  if (k < 0) {
+    k = n.days.findIndex(d => d > snap.day); if (k < 0) k = n.days.length;
+    n.days.splice(k, 0, snap.day);
+    for (const arr of [n.total, n.used, n.free]) arr.splice(k, 0, null);
+    for (const u of Object.values(n.users)) { u.bytes.splice(k, 0, null); u.files.splice(k, 0, null); }
+  }
+  const label = r => r.department.toLowerCase().includes(r.share.toLowerCase()) ? r.department : `${r.department} (${r.share})`;
+  let used = 0;
+  for (const u of Object.values(n.users)) u.bytes[k] = null;
+  for (const r of snap.rows.filter(r => r.share && r.copied_gb != null)) {
+    const name = label(r), b = Math.round(r.copied_gb * GiB);
+    if (!n.users[name]) n.users[name] = { bytes: n.days.map(() => null), files: n.days.map(() => null) };
+    n.users[name].bytes[k] = b; n.users[name].files[k] = null;
+    used += b;
+  }
+  n.used[k] = used;
+  n.total[k] = n.capacity ?? n.total[k] ?? null;
+  n.free[k] = n.total[k] != null ? n.total[k] - used : null;
+  if (!n.transfer || snap.day >= n.transfer.day) n.transfer = { day: snap.day, rows: snap.rows };
+  if (!n.scanned_at || snap.scanned_at > n.scanned_at) n.scanned_at = snap.scanned_at;
+}
+
+let xlsxReady;
+function loadXLSX() {
+  return xlsxReady ||= new Promise((ok, fail) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = ok; s.onerror = () => { xlsxReady = null; fail(new Error('Could not load the Excel reader (check the internet connection).')); };
+    document.head.appendChild(s);
+  });
+}
+function csvToRows(text) {
+  const rows = [[]]; let cur = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"' && text[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') q = false; else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { rows[rows.length - 1].push(cur); cur = ''; }
+    else if (c === '\n') { rows[rows.length - 1].push(cur.replace(/\r$/, '')); cur = ''; rows.push([]); }
+    else cur += c;
+  }
+  rows[rows.length - 1].push(cur);
+  return rows;
+}
+/* Google Sheets link -> CSV URL that browsers may fetch. */
+function sheetCsvUrl(url) {
+  if (/output=csv|format=csv|tqx=out:csv/.test(url)) return url;
+  const id = url.match(/\/spreadsheets\/d\/(?:e\/)?([\w-]+)/), gid = url.match(/[#&?]gid=(\d+)/);
+  if (/\/d\/e\//.test(url)) return url.replace(/\/pub(html)?.*$/, '/pub?output=csv' + (gid ? '&gid=' + gid[1] : ''));
+  if (id) return `https://docs.google.com/spreadsheets/d/${id[1]}/gviz/tq?tqx=out:csv${gid ? '&gid=' + gid[1] : ''}`;
+  return url;
+}
+async function readFileRows(file) {
+  if (/\.csv$/i.test(file.name)) return csvToRows(await file.text());
+  await loadXLSX();
+  const wb = XLSX.read(await file.arrayBuffer(), { cellDates: true });
+  // pick the first sheet that has a "Department" header
+  for (const name of wb.SheetNames) {
+    const aoa = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: null });
+    if (aoa.some(r => r.some(c => /^\s*department/i.test(String(c ?? ''))))) return aoa;
+  }
+  throw new Error('No sheet with a "Department" column was found in this file.');
+}
+
+const LS = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} },
+};
+const uploadsKey = n => 'nas-uploads:' + n;
+const sheetKey = n => 'nas-sheet:' + n;
+
+async function applySources(data) {
+  for (const n of data.nas) {
+    n.src = { sheet: null, uploads: 0 };
+    const url = LS.get(sheetKey(n.name), null) || n.sheet_url;
+    if (url) {
+      n.src.sheet = { url, shared: !!n.sheet_url && url === n.sheet_url };
+      try {
+        const r = await fetch(sheetCsvUrl(url), { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const text = await r.text();
+        if (/^\s*</.test(text)) throw new Error('the sheet is not shared publicly');
+        parseTransferSheet(csvToRows(text), null).forEach(s => applySnapshot(n, s));
+        n.src.sheet.ok = true;
+      } catch (e) { n.src.sheet.error = e.message; }
+    }
+    const ups = LS.get(uploadsKey(n.name), []);
+    ups.forEach(s => applySnapshot(n, s));
+    n.src.uploads = ups.length;
+  }
+}
+
+async function onUpload(n, file) {
+  try {
+    const snaps = parseTransferSheet(await readFileRows(file), file.lastModified ? new Date(file.lastModified) : null);
+    const ups = LS.get(uploadsKey(n.name), []).filter(u => !snaps.some(s => s.day === u.day));
+    if (!LS.set(uploadsKey(n.name), [...ups, ...snaps])) alert('This browser blocks saving, so the upload will be lost on reload.');
+    state.day = null;
+    await load();
+    toast(`Loaded ${snaps.reduce((t, s) => t + s.rows.length, 0)} departments for ${snaps.map(s => fmtFull(s.day)).join(', ')} from ${file.name}`);
+  } catch (e) { alert('Could not read ' + file.name + ':\n' + e.message); }
+}
+
+function toast(msg) {
+  const t = Object.assign(document.createElement('div'), { className: 'toast', textContent: msg });
+  document.body.appendChild(t); setTimeout(() => t.remove(), 4500);
+}
+
+function sourceNote(n) {
+  const out = [];
+  const sh = n.src && n.src.sheet;
+  if (sh && sh.ok) out.push(`\u2139 Live from Google Sheet${sh.shared ? '' : ' (connected in this browser only)'} · read ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+  if (sh && sh.error) out.push(`Could not read the live sheet: ${esc(sh.error)}. In Google Sheets use Share → "Anyone with the link can view", or File → Share → Publish to web → CSV.`);
+  if (n.src && n.src.uploads) out.push(`Includes ${n.src.uploads} uploaded report${n.src.uploads > 1 ? 's' : ''} saved <b>in this browser only</b>. Other people won't see ${n.src.uploads > 1 ? 'them' : 'it'}. <a href="#" data-clear="${esc(n.name)}">Remove uploads</a>`);
+  return out;
+}
+
 /* ---------- views ---------- */
 function banner(n) {
   const msgs = [];
   if (n && n.demo) msgs.push(`<b>${esc(n.name)}</b> is showing <b>sample data</b>. Real figures appear once its collector is connected.`);
+  if (n && n.src) msgs.push(...sourceNote(n));
   if (n && !n.demo && n.transfer && n.days.length && n.days[n.days.length - 1] === n.transfer.day && n.total[n.total.length - 1] == null)
     msgs.push(`Figures come from the department transfer report of ${fmtFull(n.transfer.day)}. Disk capacity is not set yet, so % used and free space are not shown.`);
   if (!n) { const demo = state.data.nas.filter(x => x.demo).map(x => esc(x.name)); if (demo.length) msgs.push(`<b>${demo.join(', ')}</b> ${demo.length > 1 ? 'are' : 'is'} showing sample data until ${demo.length > 1 ? 'their collectors are' : 'its collector is'} connected.`); }
-  return msgs.map(m => `<div class="banner">${m}</div>`).join('');
+  return msgs.map(m => m.startsWith('\u2139 ') ? `<div class="banner info">${m.slice(2)}</div>` : `<div class="banner">${m}</div>`).join('');
 }
 
 function renderLanding() {
@@ -408,6 +610,8 @@ function renderLanding() {
 }
 
 const IC2 = {
+  upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5M12 3v12"/></svg>',
+  sheet: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg>',
   db: ICONS.db,
   trend: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/></svg>',
   dbFull: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3" fill="currentColor" fill-opacity=".25"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /><path d="M4 12v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7c0 1.7-3.6 3-8 3s-8-1.3-8-3z" fill="currentColor" fill-opacity=".25" stroke="none"/></svg>',
@@ -438,7 +642,7 @@ function transferPanel(n, a) {
     return `<tr><td>${esc(r.department)}</td><td style="text-align:left">${esc(r.share || '–')}</td><td style="text-align:left">${esc(r.checked || '')}</td>
       <td>${(r.samples ?? 0).toLocaleString()}</td><td>${na(r.complete)}</td><td>${na(r.partial)}</td><td>${na(r.not_started)}</td><td>${na(r.pending)}</td><td>${(r.no_files ?? 0).toLocaleString()}</td>
       <td>${pctTxt(pc)}</td><td>${fmtGB(r.size_gb)}</td><td>${ok ? fmtGB(r.copied_gb) : 'n/a'}</td><td>${ok ? fmtGB(r.pending_gb) : 'n/a'}</td>
-      <td style="min-width:150px">${pd == null ? 'n/a' : `<span class="ubar" style="width:${Math.round(pd * 0.8)}px;background:var(${a.c})"></span>${pd.toFixed(1)}%`}</td></tr>`;
+      <td style="min-width:110px">${pd == null ? 'n/a' : `<span class="ubar" style="width:${Math.round(pd * 0.45)}px;background:var(${a.c})"></span>${pd.toFixed(1)}%`}</td></tr>`;
   };
   return `<div class="panel big" style="margin-bottom:20px">
     <div class="phead"><div><h3>Department transfer status</h3>
@@ -450,8 +654,8 @@ function transferPanel(n, a) {
       <div><div class="l">Data copied</div><div class="v">${fmtGB(T.copied_gb)}</div><div class="s">of ${fmtGB(T.size_gb)}</div></div>
       <div class="tot"><div class="l">% data copied</div><div class="v">${T.pctCopied.toFixed(1)}%</div><div class="s">${fmtGB(T.pending_gb)} pending</div></div>
     </div>
-    <div class="tbl" style="max-height:none"><table>
-      <thead><tr><th>Department</th><th style="text-align:left">Dest. share</th><th style="text-align:left">Checked?</th><th>Samples</th><th>Complete</th><th>Partial</th><th>Not started</th><th>Pending</th><th>No files</th><th>% complete</th><th>Size</th><th>Copied</th><th>Pending</th><th>% data copied</th></tr></thead>
+    <div class="tbl" style="max-height:none"><table class="ttable">
+      <thead><tr><th>Department</th><th style="text-align:left">Dest. share</th><th style="text-align:left">Checked?</th><th>Samples</th><th>Complete</th><th>Partial</th><th>Not started</th><th>Pending</th><th>No files</th><th>% done</th><th>Size</th><th>Copied</th><th>Pending</th><th>% copied</th></tr></thead>
       <tbody>${t.rows.map(row).join('')}</tbody>
       <tfoot><tr><td>Total (checked)</td><td></td><td></td><td>${T.samples.toLocaleString()}</td><td>${T.complete}</td><td>${T.partial}</td><td>${T.not_started}</td><td>${T.pending.toLocaleString()}</td><td>${T.no_files}</td>
         <td>${T.pctComplete.toFixed(1)}%</td><td>${fmtGB(T.size_gb)}</td><td>${fmtGB(T.copied_gb)}</td><td>${fmtGB(T.pending_gb)}</td><td>${T.pctCopied.toFixed(1)}%</td></tr></tfoot>
@@ -482,6 +686,9 @@ function renderModule(name) {
         <div><h1>${esc(n.name)}</h1><div class="sub">${esc(n.description || n.path)}</div></div></div>
       <nav class="switch">${d.nas.map(x => `<a href="#/nas/${encodeURIComponent(x.name)}" ${x.name === n.name ? 'aria-current="page"' : ''}>${esc(x.name)}</a>`).join('')}</nav>
       <div class="acts"><button class="btn" id="reload">${IC2.refresh}Refresh</button>
+        <button class="btn" id="sheetBtn" title="Connect a Google Sheet as a live data source">${IC2.sheet}Live sheet</button>
+        <button class="btn" id="upBtn" title="Upload the transfer status Excel / CSV">${IC2.upload}Upload Excel</button>
+        <input type="file" id="upFile" accept=".xlsx,.xls,.csv" hidden>
         <button class="btn primary" id="csv">${IC2.download}Download Report</button></div>
     </div>
     <a class="btn small" href="#">${IC2.home}Back</a>${banner(n)}`;
@@ -561,7 +768,21 @@ function renderModule(name) {
 }
 
 function bindHead(n) {
-  $('#reload').onclick = () => load().catch(() => {});
+  $('#reload').onclick = () => load().then(() => toast('Data refreshed')).catch(e => alert(e.message));
+  $('#upBtn').onclick = () => $('#upFile').click();
+  $('#upFile').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) onUpload(n, f); };
+  $('#sheetBtn').onclick = async () => {
+    const cur = LS.get(sheetKey(n.name), null) || n.sheet_url || '';
+    const url = prompt(`Paste the Google Sheet link for ${n.name}.\n\nThe sheet must be shared as "Anyone with the link can view" (or published to the web). It needs a "Department" header row with the same columns as the transfer status report. To keep day-wise history in one sheet, add a "Date" column.\n\nThis connects the sheet in this browser. To show it for everyone, set "sheet_url" for this NAS in config.json.\nLeave empty to disconnect.`, cur);
+    if (url === null) return;
+    if (url.trim()) LS.set(sheetKey(n.name), url.trim()); else LS.del(sheetKey(n.name));
+    await load().catch(e => alert(e.message));
+  };
+  document.querySelectorAll('[data-clear]').forEach(a => a.onclick = async ev => {
+    ev.preventDefault();
+    if (!confirm('Remove the reports uploaded in this browser for ' + n.name + '?')) return;
+    LS.del(uploadsKey(n.name)); state.day = null; await load();
+  });
   $('#csv').onclick = () => {
     const k = n.days.indexOf(state.day ?? n.days[n.days.length - 1]);
     if (k < 0) return;
@@ -683,7 +904,9 @@ let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(ren
 async function load() {
   const r = await fetch('data.json', { cache: 'no-store' });
   if (!r.ok) throw new Error('data.json: HTTP ' + r.status);
-  state.data = await r.json();
+  const data = await r.json();
+  await applySources(data);
+  state.data = data;
   render();
 }
 load().catch(e => { $('#app').innerHTML = `<div class="empty">Could not load data (${esc(e.message)}).</div>`; });
