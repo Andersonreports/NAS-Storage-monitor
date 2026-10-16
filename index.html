@@ -1,0 +1,693 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NAS Storage Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23c8742a'/%3E%3Cg fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'%3E%3Cellipse cx='16' cy='9.5' rx='8' ry='3'/%3E%3Cpath d='M8 9.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13M8 16c0 1.7 3.6 3 8 3s8-1.3 8-3'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f6f5f1; --surface: #ffffff; --surface-2: #f4f3ef; --ink: #14130f; --ink-2: #52514e; --muted: #898781;
+  --grid: #eceae4; --axis: #c3c2b7; --border: rgba(20,19,15,0.08);
+  --shadow: 0 1px 2px rgba(20,19,15,.04), 0 10px 30px rgba(20,19,15,.05);
+  --s1: #2a78d6; --s1-tint: #e3eefb; --s2: #1baf7a; --s2-tint: #ddf4ea; --s2-ink: #0f7f57;
+  --bar: #2a78d6; --track: #eceae4;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --up: #b42318; --down: #006300; --hover: rgba(20,19,15,0.03); --sel: rgba(42,120,214,0.08);
+  --glow-a: rgba(27,175,122,.10); --glow-b: rgba(235,150,52,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.09);
+    --shadow: 0 1px 2px rgba(0,0,0,.3);
+    --s1: #3987e5; --s1-tint: rgba(57,135,229,.16); --s2: #199e70; --s2-tint: rgba(25,158,112,.16); --s2-ink: #2fc48e;
+    --bar: #3987e5; --track: #2c2c2a;
+    --up: #e66767; --down: #0ca30c; --hover: rgba(255,255,255,0.04); --sel: rgba(57,135,229,0.14);
+    --glow-a: rgba(25,158,112,.08); --glow-b: rgba(235,150,52,.05);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --border: rgba(255,255,255,0.09);
+  --shadow: 0 1px 2px rgba(0,0,0,.3);
+  --s1: #3987e5; --s1-tint: rgba(57,135,229,.16); --s2: #199e70; --s2-tint: rgba(25,158,112,.16); --s2-ink: #2fc48e;
+  --bar: #3987e5; --track: #2c2c2a;
+  --up: #e66767; --down: #0ca30c; --hover: rgba(255,255,255,0.04); --sel: rgba(57,135,229,0.14);
+  --glow-a: rgba(25,158,112,.08); --glow-b: rgba(235,150,52,.05);
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body { margin: 0; color: var(--ink); background-color: var(--page);
+  background-image: radial-gradient(900px 500px at 92% -5%, var(--glow-a), transparent 60%),
+                    radial-gradient(700px 400px at 5% -10%, var(--glow-b), transparent 60%);
+  background-attachment: fixed;
+  font: 14px/1.5 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+.topline { height: 3px; background: linear-gradient(90deg, #2a78d6, #1baf7a 55%, #e0912f); }
+a { color: inherit; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 0 16px 40px; }
+button, select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.banner { margin: 16px auto 0; max-width: 760px; text-align: center; font-size: 13px; color: var(--ink-2);
+  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warning); border-radius: 8px; padding: 8px 12px; }
+
+/* ---------- landing ---------- */
+.hero-head { text-align: center; padding: 56px 0 8px; }
+.brand { display: inline-flex; align-items: center; gap: 16px; }
+.logo { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; flex: none;
+  background: linear-gradient(145deg, #e0912f, #b45f1c); box-shadow: 0 6px 16px rgba(180,95,28,.28); }
+.logo svg { width: 28px; height: 28px; }
+.hero-head h1 { font-size: 36px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
+.hero-head p { color: var(--ink-2); font-size: 16px; max-width: 470px; margin: 14px auto 0; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; max-width: 940px; margin: 64px auto 0; }
+@media (max-width: 420px) { .cards { grid-template-columns: 1fr; } .hero-head h1 { font-size: 28px; } }
+.syscard { background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--accent); border-radius: 14px;
+  padding: 28px 28px 24px; box-shadow: var(--shadow); text-decoration: none; display: block; transition: transform .15s, box-shadow .15s; }
+.syscard:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(20,19,15,.05), 0 16px 40px rgba(20,19,15,.08); }
+.ico { width: 60px; height: 60px; border-radius: 12px; background: var(--tint); display: grid; place-items: center; color: var(--accent); }
+.ico svg { width: 28px; height: 28px; }
+.syscard h2 { font-size: 20px; font-weight: 700; margin: 22px 0 6px; }
+.syscard .desc { color: var(--ink-2); margin: 0 0 16px; min-height: 42px; }
+.cardstat { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.cardstat .pct { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
+.cardstat .pct small { font-size: 13px; font-weight: 500; color: var(--ink-2); margin-left: 4px; letter-spacing: 0; }
+.meter { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; margin: 8px 0 6px; }
+.meter > div { height: 100%; border-radius: 4px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 18px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--ink-2);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 4px 10px; }
+.chip svg { width: 13px; height: 13px; }
+.open { color: var(--accent-ink, var(--accent)); font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+.syscard:hover .open svg { transform: translateX(3px); }
+.open svg { width: 16px; height: 16px; transition: transform .15s; }
+footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 72px; }
+
+/* ---------- module ---------- */
+.modhead { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 28px 0 20px; }
+.back { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); text-decoration: none; font-weight: 600; font-size: 13px; margin-bottom: 14px; }
+.back:hover { color: var(--ink); }
+.back svg { width: 16px; height: 16px; }
+.modtitle { display: flex; align-items: center; gap: 14px; }
+.modtitle .ico { width: 48px; height: 48px; }
+.modtitle .ico svg { width: 24px; height: 24px; }
+.modtitle h1 { font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.02em; }
+.sub { color: var(--ink-2); font-size: 13px; }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 3px; }
+.seg button { border: 0; border-radius: 6px; padding: 5px 12px; background: none; color: var(--ink-2); font-weight: 600; font-size: 13px; }
+.seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; box-shadow: var(--shadow); }
+.panel h3 { font-size: 15px; font-weight: 700; margin: 0; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+@media (max-width: 900px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .tiles { grid-template-columns: 1fr; } }
+.tile .l { color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.tile .v { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin-top: 6px; }
+.tile .s { color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+.status { font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; margin-top: 16px; }
+@media (max-width: 960px) { .cols { grid-template-columns: 1fr; } }
+.phead { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.up { color: var(--up); } .down { color: var(--down); } .flat { color: var(--muted); }
+.chart { position: relative; width: 100%; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; font-family: Inter, system-ui, sans-serif; }
+.tip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.12); white-space: nowrap; display: none; z-index: 5; }
+.tip b { display: block; margin-bottom: 2px; }
+.swatch { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; }
+.tbl { overflow: auto; max-height: 460px; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+th, td { text-align: right; padding: 8px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; position: sticky; top: 0; background: var(--surface); cursor: pointer; user-select: none; }
+tbody tr:hover { background: var(--hover); }
+tbody tr.sel { background: var(--sel); }
+tr.click { cursor: pointer; }
+tfoot td { font-weight: 700; border-bottom: 0; }
+.ubar { display: inline-block; height: 8px; border-radius: 0 4px 4px 0; background: var(--bar); vertical-align: middle; margin-right: 8px; min-width: 2px; }
+.empty { color: var(--muted); padding: 28px; text-align: center; }
+.mt { margin-top: 16px; }
+.themebtn { position: fixed; right: 16px; bottom: 16px; font-size: 12px; padding: 6px 10px; box-shadow: var(--shadow); }
+/* ---------- module v2 (NGS-style) ---------- */
+.mbar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; padding: 28px 0 22px; }
+.mbar .ttl { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.mbar .logo { width: 48px; height: 48px; border-radius: 12px; }
+.mbar .logo svg { width: 24px; height: 24px; }
+.mbar h1 { font-size: 21px; font-weight: 800; margin: 0; letter-spacing: -0.01em; }
+.mbar .acts { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+@media (max-width: 900px) { .mbar { grid-template-columns: 1fr; } .mbar .acts { justify-content: flex-start; } }
+.switch { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 11px; padding: 4px; box-shadow: var(--shadow); }
+.switch a { padding: 8px 18px; border-radius: 8px; font-weight: 700; font-size: 14px; text-decoration: none; color: var(--ink); }
+.switch a[aria-current="page"] { background: var(--s1); color: #fff; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 9px; font-weight: 600; font-size: 14px; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow); text-decoration: none; }
+.btn svg { width: 16px; height: 16px; }
+.btn.primary { background: var(--s1); color: #fff; border-color: transparent; }
+.btn.small { padding: 6px 12px; font-size: 13px; }
+.kpis4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 18px 0 20px; }
+@media (max-width: 1000px) { .kpis4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .kpis4 { grid-template-columns: 1fr; } }
+.kpi { display: flex; align-items: center; gap: 18px; padding: 18px; }
+.kpi .bigico { width: 84px; height: 84px; border-radius: 14px; flex: none; display: grid; place-items: center; }
+.kpi .bigico svg { width: 36px; height: 36px; }
+.kpi .l { color: var(--ink-2); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.kpi .v { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin: 2px 0; }
+.kpi .s { color: var(--ink-2); font-size: 13px; }
+.t-blue { background: var(--s1-tint); color: var(--s1); }
+.t-red { background: rgba(208,59,59,.12); color: var(--critical); }
+.t-green { background: var(--s2-tint); color: var(--s2-ink); }
+.t-gray { background: var(--surface-2); }
+.row2 { display: grid; grid-template-columns: 1fr 1.25fr; gap: 20px; margin-bottom: 20px; }
+@media (max-width: 1000px) { .row2 { grid-template-columns: 1fr; } }
+.panel.big { padding: 26px 28px; }
+.panel.big h3 { font-size: 18px; }
+.mini4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 18px 0 14px; }
+.mini { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.mini .l { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.mini .v { font-size: 20px; font-weight: 800; margin-top: 4px; }
+.v.red { color: var(--critical); } .v.green { color: var(--s2-ink); } .v.amber { color: #b7791f; }
+.strip { display: flex; border: 1px solid var(--border); border-radius: 12px; margin: 18px 0 16px; overflow-x: auto; }
+.strip > div { flex: 1; min-width: 104px; text-align: center; padding: 14px 8px; }
+.strip > div + div { border-left: 1px solid var(--grid); }
+.strip .l { color: var(--ink-2); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.strip .v { font-size: 20px; font-weight: 800; margin: 2px 0; white-space: nowrap; }
+.strip .s { color: var(--ink-2); font-size: 12px; }
+.strip .tot .v { color: var(--s1); }
+.hbars { display: grid; gap: 10px; }
+.hbar { display: grid; grid-template-columns: minmax(110px, 210px) 1fr auto; gap: 12px; align-items: center; cursor: pointer; padding: 3px 4px; border-radius: 6px; }
+.hbar:hover, .hbar.sel { background: var(--hover); }
+.hbar.sel { background: var(--sel); }
+.hbar .n { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hbar .tr { height: 14px; background: var(--track); border-radius: 7px; overflow: hidden; }
+.hbar .tr > div { height: 100%; border-radius: 7px; background: var(--accent); }
+.hbar .r { font-size: 13px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 128px; text-align: right; }
+.legend2 { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin: 14px 0 6px; }
+</style>
+</head>
+<body>
+<div class="topline"></div>
+<div class="wrap" id="app"><div class="empty">Loading…</div></div>
+<button class="themebtn" id="theme" title="Switch light / dark">Light / Dark</button>
+
+<script>
+const ICONS = {
+  db: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>',
+  server: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="7.5" rx="2"/><rect x="3" y="13.5" width="18" height="7.5" rx="2"/><path d="M7 6.75h.01M7 17.25h.01"/></svg>',
+  drive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><path d="M6 16h.01M10 16h.01"/></svg>',
+  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>',
+  back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>',
+};
+const ACCENTS = [
+  { c: '--s1', tint: '--s1-tint', ink: '--s1', icon: 'server' },
+  { c: '--s2', tint: '--s2-tint', ink: '--s2-ink', icon: 'drive' },
+];
+const $ = s => document.querySelector(s);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const state = { data: null, range: 90, day: null, user: null, sort: { key: 'bytes', dir: -1 } };
+
+/* ---------- theme ---------- */
+try { const t = localStorage.getItem('nas-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+$('#theme').onclick = () => {
+  const r = document.documentElement;
+  const dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('nas-theme', r.dataset.theme); } catch (e) {}
+  render();
+};
+
+/* ---------- formatting ---------- */
+function fmtBytes(b, digits = 1) {
+  if (b == null) return '–';
+  const neg = b < 0; b = Math.abs(b);
+  const u = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']; let i = 0;
+  while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+  return (neg ? '-' : '') + b.toFixed(i < 3 ? 0 : digits) + ' ' + u[i];
+}
+function fmtDelta(b) {
+  if (b == null) return '<span class="flat">–</span>';
+  if (Math.abs(b) < 1024 ** 2) return '<span class="flat">0</span>';
+  return `<span class="${b > 0 ? 'up' : 'down'}">${b > 0 ? '▲ +' : '▼ '}${fmtBytes(b)}</span>`;
+}
+const D = d => new Date(d + 'T00:00:00');
+const fmtDate = d => D(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+const fmtDateLong = d => D(d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+const shiftDay = (d, n) => { const x = D(d); x.setDate(x.getDate() - n); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+
+function statusOf(pct) {
+  const th = state.data.thresholds;
+  if (pct == null) return { c: '--muted', l: 'Capacity not set' };
+  if (pct >= th.critical) return { c: '--critical', l: 'Critical' };
+  if (pct >= th.warning) return { c: '--warning', l: 'Warning' };
+  return { c: '--good', l: 'Healthy' };
+}
+
+/* ---------- data helpers ---------- */
+function idxOnOrBefore(days, d) { let lo = -1; for (let i = 0; i < days.length && days[i] <= d; i++) lo = i; return lo; }
+function nasStats(n) {
+  const L = n.days.length - 1;
+  if (L < 0) return null;
+  const at = k => { const j = idxOnOrBefore(n.days, shiftDay(n.days[L], k)); return j >= 0 && j < L ? j : -1; };
+  const delta = k => { const j = at(k); return j >= 0 ? n.used[L] - n.used[j] : null; };
+  const hasCap = n.total[L] != null;
+  let rate = null, eta = hasCap ? '–' : 'Capacity not set';
+  const j30 = at(30) >= 0 ? at(30) : (L > 0 ? 0 : -1);
+  if (j30 >= 0) {
+    const span = (D(n.days[L]) - D(n.days[j30])) / 864e5;
+    rate = span > 0 ? (n.used[L] - n.used[j30]) / span : 0;
+    if (!hasCap) {}
+    else if (rate > 0) { const dd = Math.floor(n.free[L] / rate); eta = dd > 3650 ? '10+ years' : dd > 365 ? (dd / 365).toFixed(1) + ' years' : dd + ' days'; }
+    else eta = 'Not growing';
+  }
+  const userCount = Object.values(n.users).filter(u => u.bytes[L] != null).length;
+  return { L, day: n.days[L], total: n.total[L], used: n.used[L], free: n.free[L], pct: hasCap ? n.used[L] / n.total[L] * 100 : null, hasCap,
+    d1: delta(1), d7: delta(7), d30: delta(30), rate, eta, userCount };
+}
+
+/* ---------- line chart ---------- */
+function niceTicks(min, max, n = 5) {
+  const span = max - min || 1, step0 = span / n, mag = 10 ** Math.floor(Math.log10(step0));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= step0);
+  const lo = Math.floor(min / step) * step, out = [];
+  for (let v = lo; v <= max + step * 0.001; v += step) out.push(v);
+  if (out[out.length - 1] < max) out.push(out[out.length - 1] + step);
+  return out;
+}
+function lineChart(el, { series, yFmt, tipFmt, refs = [], yMin, yMax, height = 280, bytes = false, area = false, markers = false }) {
+  el.innerHTML = '';
+  const dates = [...new Set(series.flatMap(s => s.points.map(p => p.x)))].sort();
+  if (!dates.length) { el.innerHTML = '<div class="empty">No data for this period yet.</div>'; return; }
+  const W = el.clientWidth || 600, H = height, m = { t: 16, r: 16, b: 28, l: 60 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const ys = series.flatMap(s => s.points.map(p => p.y)).concat(refs.map(r => r.y));
+  let lo = yMin ?? Math.min(...ys), hi = yMax ?? Math.max(...ys);
+  if (yMin == null) lo = Math.max(0, lo - (hi - lo) * 0.15);
+  if (hi === lo) hi = lo + 1;
+  let unit = 1;
+  if (bytes) while (unit * 1024 <= hi) unit *= 1024;
+  const ticks = niceTicks(lo / unit, hi / unit).map(t => t * unit);
+  lo = ticks[0]; hi = ticks[ticks.length - 1];
+  const x = d => m.l + (dates.length === 1 ? iw / 2 : dates.indexOf(d) / (dates.length - 1) * iw);
+  const y = v => m.t + ih - (v - lo) / (hi - lo || 1) * ih;
+  let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img">`;
+  ticks.forEach(t => {
+    s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}" stroke="${css('--grid')}"/>`;
+    s += `<text x="${m.l - 10}" y="${y(t) + 4}" text-anchor="end">${yFmt(t)}</text>`;
+  });
+  s += `<line x1="${m.l}" x2="${W - m.r}" y1="${m.t + ih}" y2="${m.t + ih}" stroke="${css('--axis')}"/>`;
+  const nX = dates.length === 1 ? 1 : Math.max(2, Math.min(7, Math.floor(iw / 95), dates.length));
+  for (let i = 0; i < nX; i++) {
+    const d = dates[nX === 1 ? 0 : Math.round(i * (dates.length - 1) / (nX - 1))];
+    s += `<text x="${x(d)}" y="${H - 6}" text-anchor="${nX === 1 ? 'middle' : i === 0 ? 'start' : i === nX - 1 ? 'end' : 'middle'}">${fmtDate(d)}</text>`;
+  }
+  refs.forEach(r => {
+    s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(r.y)}" y2="${y(r.y)}" stroke="${css(r.color || '--muted')}" stroke-dasharray="5 4" stroke-width="1.5"/>`;
+    s += r.right ? `<text x="${W - m.r}" y="${y(r.y) - 6}" text-anchor="end">${esc(r.label)}</text>` : `<text x="${m.l + 6}" y="${y(r.y) - 6}">${esc(r.label)}</text>`;
+  });
+  series.forEach(se => {
+    const pts = se.points.map(p => `${x(p.x).toFixed(1)},${y(p.y).toFixed(1)}`);
+    if (area && se.points.length > 1) {
+      const id = 'g' + Math.random().toString(36).slice(2);
+      s += `<defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${css(se.color)}" stop-opacity=".18"/><stop offset="1" stop-color="${css(se.color)}" stop-opacity="0"/></linearGradient></defs>`;
+      s += `<polygon points="${x(se.points[0].x)},${m.t + ih} ${pts.join(' ')} ${x(se.points[se.points.length - 1].x)},${m.t + ih}" fill="url(#${id})"/>`;
+    }
+    s += `<polyline points="${pts.join(' ')}" fill="none" stroke="${css(se.color)}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    if (markers) se.points.forEach(p => { s += `<circle cx="${x(p.x)}" cy="${y(p.y)}" r="4" fill="${css('--surface')}" stroke="${css(se.color)}" stroke-width="2"/>`; });
+    const last = se.points[se.points.length - 1];
+    if (last && !markers) s += `<circle cx="${x(last.x)}" cy="${y(last.y)}" r="4" fill="${css(se.color)}" stroke="${css('--surface')}" stroke-width="2"/>`;
+  });
+  s += `<g class="hov" style="display:none"><line y1="${m.t}" y2="${m.t + ih}" stroke="${css('--axis')}"/>${series.map(se => `<circle r="5" fill="${css(se.color)}" stroke="${css('--surface')}" stroke-width="2"/>`).join('')}</g>`;
+  s += `<rect x="${m.l}" y="${m.t}" width="${iw}" height="${ih}" fill="transparent"/></svg><div class="tip"></div>`;
+  el.innerHTML = s;
+  const svg = el.querySelector('svg'), hov = svg.querySelector('.hov'), tip = el.querySelector('.tip');
+  const lookup = series.map(se => Object.fromEntries(se.points.map(p => [p.x, p])));
+  const move = ev => {
+    const r = svg.getBoundingClientRect(), cx = (ev.touches ? ev.touches[0].clientX : ev.clientX);
+    const px = (cx - r.left) * W / r.width;
+    const i = Math.max(0, Math.min(dates.length - 1, Math.round((px - m.l) / (iw || 1) * (dates.length - 1))));
+    const d = dates[i];
+    hov.style.display = '';
+    const ln = hov.querySelector('line'); ln.setAttribute('x1', x(d)); ln.setAttribute('x2', x(d));
+    let rows = '';
+    hov.querySelectorAll('circle').forEach((c, k) => {
+      const p = lookup[k][d];
+      c.style.display = p ? '' : 'none';
+      if (p) { c.setAttribute('cx', x(d)); c.setAttribute('cy', y(p.y)); rows += `<div>${series.length > 1 ? `<span class="swatch" style="background:${css(series[k].color)}"></span>${esc(series[k].name)}: ` : ''}<b style="display:inline">${tipFmt(p)}</b></div>`; }
+    });
+    tip.innerHTML = `<b>${fmtDateLong(d)}</b>${rows}`;
+    tip.style.display = 'block';
+    const left = x(d) * r.width / W;
+    tip.style.left = Math.max(4, Math.min(left + 12, r.width - tip.offsetWidth - 4)) + 'px';
+    tip.style.top = '4px';
+  };
+  svg.addEventListener('mousemove', move); svg.addEventListener('touchmove', move, { passive: true });
+  svg.addEventListener('mouseleave', () => { hov.style.display = 'none'; tip.style.display = 'none'; });
+}
+
+function sparkline(n, color) {
+  const pts = n.days.slice(-30).map((d, i, a) => ({ i, v: n.used[n.days.length - a.length + i] }));
+  if (pts.length < 2) return '';
+  const W = 120, H = 32, lo = Math.min(...pts.map(p => p.v)), hi = Math.max(...pts.map(p => p.v)) || 1;
+  const p = pts.map(q => `${(q.i / (pts.length - 1) * W).toFixed(1)},${(H - 2 - (q.v - lo) / (hi - lo || 1) * (H - 4)).toFixed(1)}`).join(' ');
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-label="Last 30 days trend"><polyline points="${p}" fill="none" stroke="${css(color)}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+/* ---------- views ---------- */
+function banner(n) {
+  const msgs = [];
+  if (n && n.demo) msgs.push(`<b>${esc(n.name)}</b> is showing <b>sample data</b>. Real figures appear once its collector is connected.`);
+  if (n && !n.demo && n.transfer && n.days.length && n.days[n.days.length - 1] === n.transfer.day && n.total[n.total.length - 1] == null)
+    msgs.push(`Figures come from the department transfer report of ${fmtFull(n.transfer.day)}. Disk capacity is not set yet, so % used and free space are not shown.`);
+  if (!n) { const demo = state.data.nas.filter(x => x.demo).map(x => esc(x.name)); if (demo.length) msgs.push(`<b>${demo.join(', ')}</b> ${demo.length > 1 ? 'are' : 'is'} showing sample data until ${demo.length > 1 ? 'their collectors are' : 'its collector is'} connected.`); }
+  return msgs.map(m => `<div class="banner">${m}</div>`).join('');
+}
+
+function renderLanding() {
+  const d = state.data;
+  const cards = d.nas.map((n, i) => {
+    const a = ACCENTS[i % ACCENTS.length], st = nasStats(n);
+    const style = `--accent:var(${a.c});--tint:var(${a.tint});--accent-ink:var(${a.ink})`;
+    const body = st ? (() => {
+      const s = statusOf(st.pct);
+      const tr = n.transfer && transferTotals(n.transfer);
+      return (st.hasCap ? `<div class="cardstat"><div class="pct">${st.pct.toFixed(1)}%<small>used</small></div>${sparkline(n, a.c)}</div>
+        <div class="meter"><div style="width:${Math.min(100, st.pct)}%;background:var(${s.c})"></div></div>
+        <div class="sub">${fmtBytes(st.used, 2)} of ${fmtBytes(st.total, 2)} · <b>${fmtBytes(st.free, 2)} free</b></div>`
+        : `<div class="cardstat"><div class="pct">${fmtBytes(st.used, 2)}<small>stored</small></div>${sparkline(n, a.c)}</div>
+        ${tr ? `<div class="meter" title="Data copied"><div style="width:${tr.pctCopied}%;background:var(${a.c})"></div></div>
+        <div class="sub">Transfer: <b>${tr.pctCopied.toFixed(1)}% of data copied</b> · ${fmtGB(tr.pending_gb)} pending</div>` : ''}`) + `
+        <div class="chips">
+          <span class="chip"><span class="dot" style="background:var(${s.c})"></span>${s.l}</span>
+          <span class="chip">${ICONS.users}${st.userCount} users</span>
+          <span class="chip">${ICONS.cal}${st.hasCap ? 'Full in ' + st.eta : 'As of ' + fmtFull(st.day)}</span>
+        </div>`;
+    })() : `<div class="chips"><span class="chip">No data yet</span></div>`;
+    return `<a class="syscard" href="#/nas/${encodeURIComponent(n.name)}" style="${style}">
+      <div class="ico">${ICONS[a.icon]}</div>
+      <h2>${esc(n.name)}</h2>
+      <p class="desc">${esc(n.description || 'Storage usage, per-user breakdown and day-wise history.')}</p>
+      ${body}
+      <span class="open">Open module ${ICONS.arrow}</span></a>`;
+  }).join('');
+  const updated = d.nas.map(n => n.scanned_at).filter(Boolean).sort().pop();
+  $('#app').innerHTML = `
+    <div class="hero-head">
+      <div class="brand"><div class="logo"><span style="color:#fff">${ICONS.db}</span></div><h1>NAS Storage Monitor</h1></div>
+      <p>Choose a NAS below to view its storage usage, who is using how much, and day-wise history.</p>
+    </div>
+    ${banner()}
+    <div class="cards">${cards}</div>
+    <footer>NAS Storage Monitor · internal storage dashboard${updated ? ' · last scan ' + new Date(updated).toLocaleString() : ''}</footer>`;
+}
+
+const IC2 = {
+  db: ICONS.db,
+  trend: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 7 13.5 15.5 8.5 10.5 2 17"/><path d="M16 7h6v6"/></svg>',
+  dbFull: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3" fill="currentColor" fill-opacity=".25"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /><path d="M4 12v7c0 1.7 3.6 3 8 3s8-1.3 8-3v-7c0 1.7-3.6 3-8 3s-8-1.3-8-3z" fill="currentColor" fill-opacity=".25" stroke="none"/></svg>',
+  home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>',
+  refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>',
+  download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5M12 15V3"/></svg>',
+};
+const RANGES = [[7, 'Last 7 days'], [30, 'Last 30 days'], [90, 'Last 90 days'], [365, 'Last year'], [0, 'All time']];
+
+const fmtGB = v => v == null ? 'n/a' : Math.round(v).toLocaleString() + ' GB';
+const pctTxt = v => v == null ? 'n/a' : v.toFixed(1) + '%';
+function transferTotals(t) {
+  const rows = t.rows.filter(r => r.share);
+  const sum = k => rows.reduce((s, r) => s + (r[k] || 0), 0);
+  const tot = { samples: sum('samples'), complete: sum('complete'), partial: sum('partial'), not_started: sum('not_started'),
+    pending: sum('pending'), no_files: sum('no_files'), size_gb: sum('size_gb'), copied_gb: sum('copied_gb'), pending_gb: sum('pending_gb') };
+  tot.pctComplete = tot.samples - tot.no_files ? tot.complete / (tot.samples - tot.no_files) * 100 : 0;
+  tot.pctCopied = tot.size_gb ? tot.copied_gb / tot.size_gb * 100 : 0;
+  return tot;
+}
+function transferPanel(n, a) {
+  const t = n.transfer, T = transferTotals(t);
+  const row = r => {
+    const ok = !!r.share;
+    const pc = ok && r.samples - r.no_files ? r.complete / (r.samples - r.no_files) * 100 : null;
+    const pd = ok && r.size_gb ? r.copied_gb / r.size_gb * 100 : null;
+    const na = v => ok ? (v ?? 0).toLocaleString() : 'n/a';
+    return `<tr><td>${esc(r.department)}</td><td style="text-align:left">${esc(r.share || '–')}</td><td style="text-align:left">${esc(r.checked || '')}</td>
+      <td>${(r.samples ?? 0).toLocaleString()}</td><td>${na(r.complete)}</td><td>${na(r.partial)}</td><td>${na(r.not_started)}</td><td>${na(r.pending)}</td><td>${(r.no_files ?? 0).toLocaleString()}</td>
+      <td>${pctTxt(pc)}</td><td>${fmtGB(r.size_gb)}</td><td>${ok ? fmtGB(r.copied_gb) : 'n/a'}</td><td>${ok ? fmtGB(r.pending_gb) : 'n/a'}</td>
+      <td style="min-width:150px">${pd == null ? 'n/a' : `<span class="ubar" style="width:${Math.round(pd * 0.8)}px;background:var(${a.c})"></span>${pd.toFixed(1)}%`}</td></tr>`;
+  };
+  return `<div class="panel big" style="margin-bottom:20px">
+    <div class="phead"><div><h3>Department transfer status</h3>
+      <div class="sub">As of ${fmtFull(t.day)}${n.scanned_at && n.scanned_at.startsWith(t.day) ? ' ' + new Date(n.scanned_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}. A file counts as copied when a file with the same name is in the department's destination share (unfinished .part files are not counted).</div></div></div>
+    <div class="strip">
+      <div><div class="l">Samples</div><div class="v">${T.samples.toLocaleString()}</div><div class="s">checked departments</div></div>
+      <div><div class="l">Complete</div><div class="v">${T.complete.toLocaleString()}</div><div class="s">${T.pctComplete.toFixed(1)}% of samples</div></div>
+      <div><div class="l">Pending samples</div><div class="v">${T.pending.toLocaleString()}</div><div class="s">${T.partial} partial · ${T.not_started} not started</div></div>
+      <div><div class="l">Data copied</div><div class="v">${fmtGB(T.copied_gb)}</div><div class="s">of ${fmtGB(T.size_gb)}</div></div>
+      <div class="tot"><div class="l">% data copied</div><div class="v">${T.pctCopied.toFixed(1)}%</div><div class="s">${fmtGB(T.pending_gb)} pending</div></div>
+    </div>
+    <div class="tbl" style="max-height:none"><table>
+      <thead><tr><th>Department</th><th style="text-align:left">Dest. share</th><th style="text-align:left">Checked?</th><th>Samples</th><th>Complete</th><th>Partial</th><th>Not started</th><th>Pending</th><th>No files</th><th>% complete</th><th>Size</th><th>Copied</th><th>Pending</th><th>% data copied</th></tr></thead>
+      <tbody>${t.rows.map(row).join('')}</tbody>
+      <tfoot><tr><td>Total (checked)</td><td></td><td></td><td>${T.samples.toLocaleString()}</td><td>${T.complete}</td><td>${T.partial}</td><td>${T.not_started}</td><td>${T.pending.toLocaleString()}</td><td>${T.no_files}</td>
+        <td>${T.pctComplete.toFixed(1)}%</td><td>${fmtGB(T.size_gb)}</td><td>${fmtGB(T.copied_gb)}</td><td>${fmtGB(T.pending_gb)}</td><td>${T.pctCopied.toFixed(1)}%</td></tr></tfoot>
+    </table></div></div>`;
+}
+function gauge(pct, color) {
+  const r = 26, c = Math.PI * r, f = Math.min(100, pct) / 100;
+  return `<svg viewBox="0 0 64 40" width="64" height="40" aria-hidden="true"><path d="M6 34a26 26 0 0 1 52 0" fill="none" stroke="${css('--track')}" stroke-width="7" stroke-linecap="round"/>
+    <path d="M6 34a26 26 0 0 1 52 0" fill="none" stroke="${css(color)}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}"/></svg>`;
+}
+const fmtFull = d => D(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+function addDays(d, n) { return shiftDay(d, -n); }
+
+function rangeIdx(n) {
+  const last = n.days[n.days.length - 1];
+  const since = state.range ? shiftDay(last, state.range) : '0000';
+  return n.days.map((day, k) => ({ day, k })).filter(o => o.day >= since);
+}
+
+function renderModule(name) {
+  const d = state.data, i = d.nas.findIndex(n => n.name === name);
+  if (i < 0) { location.hash = ''; return; }
+  const n = d.nas[i], a = ACCENTS[i % ACCENTS.length], st = nasStats(n);
+  document.title = `${n.name} · NAS Storage Monitor`;
+  const head = `
+    <div class="mbar">
+      <div class="ttl"><div class="logo"><span style="color:#fff">${ICONS.db}</span></div>
+        <div><h1>${esc(n.name)}</h1><div class="sub">${esc(n.description || n.path)}</div></div></div>
+      <nav class="switch">${d.nas.map(x => `<a href="#/nas/${encodeURIComponent(x.name)}" ${x.name === n.name ? 'aria-current="page"' : ''}>${esc(x.name)}</a>`).join('')}</nav>
+      <div class="acts"><button class="btn" id="reload">${IC2.refresh}Refresh</button>
+        <button class="btn primary" id="csv">${IC2.download}Download Report</button></div>
+    </div>
+    <a class="btn small" href="#">${IC2.home}Back</a>${banner(n)}`;
+  if (!st) { $('#app').innerHTML = head + '<div class="panel empty mt">No scans recorded for this NAS yet.</div>'; bindHead(n); return; }
+  const s = statusOf(st.pct), L = st.L, prevDay = L > 0 ? n.days[L - 1] : null;
+  const sinceLast = L > 0 ? n.used[L] - n.used[L - 1] : null;
+  const j30 = (() => { const j = idxOnOrBefore(n.days, shiftDay(st.day, 30)); return j >= 0 && j < L ? j : (L > 0 ? 0 : -1); })();
+  const daysLeft = st.hasCap && st.rate > 0 ? Math.floor(st.free / st.rate) : null;
+  $('#app').innerHTML = head + `
+    <div class="kpis4">
+      <div class="panel kpi"><div class="bigico t-blue">${IC2.db}</div><div><div class="l">Total capacity</div><div class="v">${st.hasCap ? fmtBytes(st.total, 2) : 'Not set'}</div><div class="s">${st.hasCap ? esc(n.path) : 'add capacity_bytes in config.json'}</div></div></div>
+      <div class="panel kpi"><div class="bigico t-red">${IC2.trend}</div><div><div class="l">Used</div><div class="v">${fmtBytes(st.used, 2)}</div><div class="s" style="font-size:12px">${sinceLast == null ? 'first scan' : fmtDelta(sinceLast) + ' since last scan'}</div></div></div>
+      <div class="panel kpi"><div class="bigico t-green">${IC2.dbFull}</div><div><div class="l">Available</div><div class="v">${st.hasCap ? fmtBytes(st.free, 2) : '–'}</div><div class="s">as of ${fmtFull(st.day)}</div></div></div>
+      <div class="panel kpi"><div class="bigico t-gray">${gauge(st.pct ?? 0, s.c)}</div><div><div class="l">Usage</div><div class="v">${st.hasCap ? Math.round(st.pct) + '%' : '–'}</div>
+        <div class="s"><span class="status"><span class="dot" style="background:var(${s.c})"></span>${s.l}</span>${st.hasCap ? ` · ${fmtBytes(st.used)} / ${fmtBytes(st.total)}` : ''}</div></div></div>
+    </div>
+    ${n.transfer ? transferPanel(n, a) : ''}
+    <div class="row2">
+      <div class="panel big"><h3>Growth rate & projection</h3>
+        <div class="mini4">
+          <div class="mini"><div class="l">Since last scan</div><div class="v ${sinceLast == null ? '' : sinceLast > 0 ? 'red' : 'green'}">${sinceLast == null ? '–' : (sinceLast > 0 ? '▲ +' : '▼ ') + fmtBytes(sinceLast)}</div></div>
+          <div class="mini"><div class="l">Growth rate</div><div class="v">${st.rate == null ? '–' : fmtBytes(st.rate) + ' / day'}</div></div>
+          <div class="mini"><div class="l">Days remaining</div><div class="v amber">${!st.hasCap || st.rate == null ? '–' : daysLeft == null ? '∞' : '~' + daysLeft.toLocaleString()}</div></div>
+          <div class="mini"><div class="l">Projected full</div><div class="v ${daysLeft != null && daysLeft < 60 ? 'red' : 'green'}">${!st.hasCap ? 'Needs capacity' : st.rate == null ? '–' : daysLeft == null ? 'Not growing' : fmtFull(addDays(st.day, daysLeft))}</div></div>
+        </div>
+        <div class="sub">${st.rate == null ? 'Needs at least two scans to estimate growth.' : `Based on ${fmtBytes(st.used - n.used[j30], 1)} added over ${Math.round((D(st.day) - D(n.days[j30])) / 864e5)} days, between the ${fmtFull(n.days[j30])} and ${fmtFull(st.day)} scans.`}</div>
+        <div class="mini4" style="margin-top:18px">
+          <div class="mini"><div class="l">Last 24h</div><div class="v" style="font-size:16px">${fmtDelta(st.d1)}</div></div>
+          <div class="mini"><div class="l">Last 7 days</div><div class="v" style="font-size:16px">${fmtDelta(st.d7)}</div></div>
+          <div class="mini"><div class="l">Last 30 days</div><div class="v" style="font-size:16px">${fmtDelta(st.d30)}</div></div>
+          <div class="mini"><div class="l">Users / folders</div><div class="v" style="font-size:16px">${st.userCount}</div></div>
+        </div>
+      </div>
+      <div class="panel big"><div class="phead"><div><h3>Storage used over time</h3><div class="sub" id="rangeSub"></div></div>
+        <select id="rangeSel">${RANGES.map(([v, l]) => `<option value="${v}" ${v === state.range ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+        <div class="chart" id="nasChart"></div></div>
+    </div>
+    <div class="row2" style="grid-template-columns:1.25fr 1fr">
+      <div class="panel big" style="--accent:var(${a.c})"><div class="phead"><div><h3>User-wise breakdown</h3><div class="sub" id="ubSub"></div></div>
+        <select id="daySel" aria-label="Date"></select></div>
+        <div id="ubody"></div></div>
+      <div class="panel big"><h3>Storage change by day</h3><div class="sub" id="cbSub"></div>
+        <div class="legend2"><span><span class="swatch" style="background:var(${a.c})"></span>Space added</span><span><span class="swatch" style="background:var(--axis)"></span>Space freed</span></div>
+        <div class="chart" id="changeChart"></div></div>
+    </div>
+    <div class="panel big mt" id="userCard" hidden></div>
+    <div class="row2 mt" style="grid-template-columns:1.4fr 1fr">
+      <div class="panel big"><h3>All users — detail</h3><div class="sub">Click a column to sort, click a row for that user's history</div><div class="tbl mt" id="userTbl"></div></div>
+      <div class="panel big"><h3>Day-wise history</h3><div class="sub">One row per scan day</div><div class="tbl mt" id="dayTbl"></div></div>
+    </div>
+    <footer>NAS Storage Monitor · internal storage dashboard${n.scanned_at ? ' · last scan ' + new Date(n.scanned_at).toLocaleString() : ''}</footer>`;
+  bindHead(n);
+
+  const rng = rangeIdx(n);
+  $('#rangeSub').textContent = rng.length ? `${rng.length} scans, ${fmtFull(rng[0].day)} → ${fmtFull(rng[rng.length - 1].day)}` : 'No scans in this period';
+  $('#rangeSel').onchange = e => { state.range = +e.target.value; renderModule(name); };
+  lineChart($('#nasChart'), {
+    series: [{ name: 'Used', color: a.c, points: rng.map(o => ({ x: o.day, y: n.used[o.k], k: o.k })) }],
+    refs: st.hasCap ? [{ y: st.total, label: 'Total: ' + fmtBytes(st.total), right: true }] : [], yMin: 0, bytes: true, area: true, markers: rng.length <= 45, height: 300,
+    yFmt: v => fmtBytes(v, v % 1024 ** 4 ? 1 : 0), tipFmt: p => `${fmtBytes(p.y, 2)} used${n.total[p.k] ? ` (${(p.y / n.total[p.k] * 100).toFixed(1)}%)` : ''}`,
+  });
+
+  const cr = rng.filter(o => o.k > 0).slice(-30);
+  $('#cbSub').textContent = cr.length ? `${fmtFull(cr[0].day)} → ${fmtFull(cr[cr.length - 1].day)} · net ${fmtBytes(cr.reduce((t, o) => t + n.used[o.k] - n.used[o.k - 1], 0))}` : '';
+  barChart($('#changeChart'), cr.map(o => ({ x: o.day, y: n.used[o.k] - n.used[o.k - 1] })), a.c);
+
+  const rows = [...rng].reverse();
+  $('#dayTbl').innerHTML = `<table><thead><tr><th>Date</th><th>Used</th><th>Free</th><th>%</th><th>Change</th></tr></thead><tbody>` +
+    rows.map(o => `<tr><td>${fmtDateLong(o.day)}</td><td>${fmtBytes(n.used[o.k], 2)}</td><td>${fmtBytes(n.free[o.k], 2)}</td>
+      <td>${n.total[o.k] ? (n.used[o.k] / n.total[o.k] * 100).toFixed(1) + '%' : '–'}</td><td>${fmtDelta(o.k > 0 ? n.used[o.k] - n.used[o.k - 1] : null)}</td></tr>`).join('') + '</tbody></table>';
+
+  if (state.day == null || !n.days.includes(state.day)) state.day = st.day;
+  $('#daySel').innerHTML = [...n.days].reverse().map(x => `<option value="${x}" ${x === state.day ? 'selected' : ''}>${fmtFull(x)}</option>`).join('');
+  $('#daySel').onchange = e => { state.day = e.target.value; renderUsers(n, a); if (state.user) renderUser(n, a); };
+  renderUsers(n, a);
+  if (state.user && n.users[state.user]) renderUser(n, a); else state.user = null;
+}
+
+function bindHead(n) {
+  $('#reload').onclick = () => load().catch(() => {});
+  $('#csv').onclick = () => {
+    const k = n.days.indexOf(state.day ?? n.days[n.days.length - 1]);
+    if (k < 0) return;
+    const lines = [['NAS', 'Date', 'User/Folder', 'Bytes', 'GB', 'Files']];
+    Object.entries(n.users).filter(([, u]) => u.bytes[k] != null).sort((p, q) => q[1].bytes[k] - p[1].bytes[k])
+      .forEach(([user, u]) => lines.push([n.name, n.days[k], user, u.bytes[k], (u.bytes[k] / 1024 ** 3).toFixed(2), u.files[k] ?? '']));
+    lines.push([], ['NAS', 'Date', 'Total bytes', 'Used bytes', 'Free bytes', 'Used %']);
+    n.days.forEach((day, j) => lines.push([n.name, day, n.total[j], n.used[j], n.free[j], (n.used[j] / n.total[j] * 100).toFixed(2)]));
+    const csv = lines.map(r => r.map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    Object.assign(document.createElement('a'), { href: url, download: `${n.name}-storage-${n.days[k]}.csv` }).click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+}
+
+function barChart(el, pts, color) {
+  if (!pts.length) { el.innerHTML = '<div class="empty">Needs at least two scans.</div>'; return; }
+  const W = el.clientWidth || 500, H = 280, m = { t: 12, r: 8, b: 28, l: 60 }, iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const vals = pts.map(p => p.y), hiAbs = Math.max(...vals.map(Math.abs), 1);
+  let unit = 1; while (unit * 1024 <= hiAbs) unit *= 1024;
+  const ticks = niceTicks(Math.min(0, ...vals) / unit, Math.max(0, ...vals) / unit, 4).map(t => t * unit);
+  const lo = ticks[0], hi = ticks[ticks.length - 1], y = v => m.t + ih - (v - lo) / (hi - lo || 1) * ih;
+  const bw = iw / pts.length, w = Math.max(2, Math.min(28, bw - 2));
+  let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img">`;
+  ticks.forEach(t => { s += `<line x1="${m.l}" x2="${W - m.r}" y1="${y(t)}" y2="${y(t)}" stroke="${css(t === 0 ? '--axis' : '--grid')}"/><text x="${m.l - 10}" y="${y(t) + 4}" text-anchor="end">${fmtBytes(t)}</text>`; });
+  pts.forEach((p, i) => {
+    const x = m.l + i * bw + (bw - w) / 2, y0 = y(0), y1 = y(p.y), top = Math.min(y0, y1), h = Math.max(1, Math.abs(y1 - y0)), r = Math.min(4, w / 2, h);
+    const path = p.y >= 0
+      ? `M${x},${y0}V${top + r}q0,-${r} ${r},-${r}h${w - 2 * r}q${r},0 ${r},${r}V${y0}z`
+      : `M${x},${y0}V${top + h - r}q0,${r} ${r},${r}h${w - 2 * r}q${r},0 ${r},-${r}V${y0}z`;
+    s += `<path d="${path}" fill="${css(p.y >= 0 ? color : '--axis')}"/>`;
+    s += `<rect class="hit" data-i="${i}" x="${m.l + i * bw}" y="${m.t}" width="${bw}" height="${ih}" fill="transparent"/>`;
+  });
+  const nX = Math.max(2, Math.min(6, Math.floor(iw / 80), pts.length));
+  for (let k = 0; k < nX; k++) { const i = Math.round(k * (pts.length - 1) / (nX - 1)); s += `<text x="${m.l + i * bw + bw / 2}" y="${H - 6}" text-anchor="middle">${fmtDate(pts[i].x)}</text>`; }
+  s += '</svg><div class="tip"></div>';
+  el.innerHTML = s;
+  const tip = el.querySelector('.tip'), svg = el.querySelector('svg');
+  el.querySelectorAll('.hit').forEach(r => {
+    r.addEventListener('mouseenter', () => {
+      const p = pts[+r.dataset.i], b = svg.getBoundingClientRect(), x = (+r.getAttribute('x') + bw / 2) * b.width / W;
+      r.setAttribute('fill', css('--hover'));
+      tip.innerHTML = `<b>${fmtDateLong(p.x)}</b>${p.y >= 0 ? 'Added' : 'Freed'}: ${fmtBytes(Math.abs(p.y), 2)}`;
+      tip.style.display = 'block'; tip.style.top = '4px';
+      tip.style.left = Math.max(4, Math.min(x + 10, b.width - tip.offsetWidth - 4)) + 'px';
+    });
+    r.addEventListener('mouseleave', () => { r.setAttribute('fill', 'transparent'); tip.style.display = 'none'; });
+  });
+}
+
+function userRows(n) {
+  const k = n.days.indexOf(state.day);
+  const back = days => { const j = idxOnOrBefore(n.days, shiftDay(state.day, days)); return j >= 0 && j < k ? j : -1; };
+  const j1 = back(1), j7 = back(7), j30 = back(30);
+  const dd = (u, j) => j >= 0 && u.bytes[j] != null ? u.bytes[k] - u.bytes[j] : null;
+  return Object.entries(n.users).filter(([, u]) => u.bytes[k] != null)
+    .map(([user, u]) => ({ user, bytes: u.bytes[k], files: u.files[k], d1: dd(u, j1), d7: dd(u, j7), d30: dd(u, j30) }));
+}
+
+function renderUsers(n, a) {
+  const list = userRows(n), total = list.reduce((s, u) => s + u.bytes, 0), files = list.reduce((s, u) => s + (u.files || 0), 0);
+  const bySize = [...list].sort((p, q) => q.bytes - p.bytes), max = Math.max(1, ...list.map(u => u.bytes));
+  $('#ubSub').textContent = `${fmtFull(state.day)} · ${list.length} users · ${fmtBytes(total, 2)}`;
+  $('#ubody').innerHTML = `
+    <div class="strip">${bySize.slice(0, 4).map(u => `<div><div class="l" title="${esc(u.user)}">${esc(u.user)}</div><div class="v">${fmtBytes(u.bytes, 1)}</div><div class="s">${total ? (u.bytes / total * 100).toFixed(1) : 0}%</div></div>`).join('')}
+      <div class="tot"><div class="l">Total</div><div class="v">${fmtBytes(total, 1)}</div><div class="s">${files ? files.toLocaleString() + ' files' : list.length + ' shares'}</div></div></div>
+    <div class="hbars">${bySize.map(u => `<div class="hbar ${u.user === state.user ? 'sel' : ''}" data-u="${esc(u.user)}" title="Show ${esc(u.user)} history">
+      <div class="n">${esc(u.user)}</div><div class="tr"><div style="width:${Math.max(0.5, u.bytes / max * 100)}%"></div></div>
+      <div class="r">${fmtBytes(u.bytes, 2)} · ${total ? (u.bytes / total * 100).toFixed(1) : 0}%</div></div>`).join('') || '<div class="empty">No user data for this day</div>'}</div>`;
+
+  const { key, dir } = state.sort;
+  list.sort((p, q) => { const av = p[key] ?? -Infinity, bv = q[key] ?? -Infinity; return (typeof av === 'string' ? av.localeCompare(bv) : av - bv) * dir; });
+  const cols = [['user', 'User / folder'], ['bytes', 'Size'], ['share', 'Share'], ['files', 'Files'], ['d1', '24h'], ['d7', '7 days'], ['d30', '30 days']];
+  $('#userTbl').innerHTML = `<table><thead><tr>${cols.map(([c, l]) => `<th data-k="${c}">${l}${c === key ? (dir < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead><tbody>` +
+    list.map(u => `<tr class="click ${u.user === state.user ? 'sel' : ''}" data-u="${esc(u.user)}">
+      <td>${esc(u.user)}</td><td>${fmtBytes(u.bytes, 2)}</td><td>${total ? (u.bytes / total * 100).toFixed(1) : 0}%</td><td>${u.files == null ? '–' : u.files.toLocaleString()}</td>
+      <td>${fmtDelta(u.d1)}</td><td>${fmtDelta(u.d7)}</td><td>${fmtDelta(u.d30)}</td></tr>`).join('') +
+    `</tbody><tfoot><tr><td>Total (${list.length})</td><td>${fmtBytes(total, 2)}</td><td>100%</td><td>${files ? files.toLocaleString() : '–'}</td><td colspan="3"></td></tr></tfoot></table>`;
+  $('#userTbl').querySelectorAll('th').forEach(th => th.onclick = () => {
+    const c = th.dataset.k === 'share' ? 'bytes' : th.dataset.k;
+    state.sort = { key: c, dir: state.sort.key === c ? -state.sort.dir : (c === 'user' ? 1 : -1) };
+    renderUsers(n, a);
+  });
+  document.querySelectorAll('#userTbl tbody tr[data-u], #ubody .hbar[data-u]').forEach(el => el.onclick = () => {
+    state.user = el.dataset.u; renderUsers(n, a); renderUser(n, a);
+    $('#userCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+function renderUser(n, a) {
+  const u = n.users[state.user], card = $('#userCard');
+  const rng = rangeIdx(n);
+  const pts = rng.map(o => ({ x: o.day, y: u.bytes[o.k], f: u.files[o.k] })).filter(p => p.y != null);
+  card.hidden = false;
+  const first = pts[0], end = pts[pts.length - 1];
+  card.innerHTML = `<div class="phead"><div><h3>${esc(state.user)} — day-wise usage</h3>
+      <div class="sub">${end ? `Now ${fmtBytes(end.y, 2)} · ${fmtDelta(end.y - first.y)} over ${RANGES.find(r => r[0] === state.range)[1].toLowerCase()}` : 'No history in this period'}</div></div>
+      <button class="btn small" id="userClose">Close</button></div>
+    <div class="cols" style="margin-top:0"><div class="chart" id="userChart"></div><div class="tbl" style="max-height:300px" id="userDayTbl"></div></div>`;
+  lineChart($('#userChart'), {
+    series: [{ name: state.user, color: a.c, points: pts }], bytes: true, area: true, height: 260, markers: pts.length <= 45,
+    yFmt: v => fmtBytes(v), tipFmt: p => `${fmtBytes(p.y, 2)}${p.f == null ? '' : ' · ' + p.f.toLocaleString() + ' files'}`,
+  });
+  const rows = [...pts].reverse();
+  $('#userDayTbl').innerHTML = `<table><thead><tr><th>Date</th><th>Size</th><th>Files</th><th>Change</th></tr></thead><tbody>` +
+    rows.map((r, k) => `<tr><td>${fmtDateLong(r.x)}</td><td>${fmtBytes(r.y, 2)}</td><td>${r.f == null ? '–' : r.f.toLocaleString()}</td><td>${fmtDelta(rows[k + 1] ? r.y - rows[k + 1].y : null)}</td></tr>`).join('') + '</tbody></table>';
+  $('#userClose').onclick = () => { state.user = null; card.hidden = true; renderUsers(n, a); };
+}
+
+/* ---------- routing ---------- */
+function render() {
+  if (!state.data) return;
+  const m = location.hash.match(/^#\/nas\/(.+)$/);
+  if (m) renderModule(decodeURIComponent(m[1])); else renderLanding();
+}
+addEventListener('hashchange', () => { state.user = null; state.day = null; render(); scrollTo(0, 0); });
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(render, 150); });
+
+async function load() {
+  const r = await fetch('data.json', { cache: 'no-store' });
+  if (!r.ok) throw new Error('data.json: HTTP ' + r.status);
+  state.data = await r.json();
+  render();
+}
+load().catch(e => { $('#app').innerHTML = `<div class="empty">Could not load data (${esc(e.message)}).</div>`; });
+setInterval(() => load().catch(() => {}), 10 * 60 * 1000);
+</script>
+</body>
+</html>

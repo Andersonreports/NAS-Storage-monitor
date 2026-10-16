@@ -1,0 +1,8 @@
+department,share,checked,samples,complete,partial,not_started,pending,no_files,size_gb,copied_gb,pending_gb
+Cytogenetics,user5,Checked,46,5,30,1,31,10,553,369,183
+Haemato Oncology,,No destination share,3,,,,,0,43,,
+Haematology - user1,user1,Checked,623,109,4,487,491,23,5574,1100,4473
+Haematology - user2,user2,Checked,141,94,37,4,41,6,1404,1145,258
+Medical Genetics,user6,Checked (server listing),352,197,107,24,131,24,3852,2893,959
+Molecular Endocrinology,user7,Checked,371,0,80,290,370,1,4657,774,3883
+Nephrology,user4,Checked,202,97,37,68,105,0,2031,1373,657

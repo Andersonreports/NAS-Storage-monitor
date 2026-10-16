@@ -1,21 +1,43 @@
 {
   "db": "data/storage.db",
-  "server": { "host": "0.0.0.0", "port": 8080 },
-  "thresholds": { "warning": 80, "critical": 90 },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080
+  },
+  "thresholds": {
+    "warning": 80,
+    "critical": 90
+  },
   "nas": [
     {
-      "name": "NAS-01",
+      "name": "CMC NAS",
       "path": "/mnt/nas1",
       "user_mode": "folders",
       "user_root": "/mnt/nas1",
-      "exclude": ["#recycle", "@eaDir", "#snapshot", ".snapshot", "lost+found"]
+      "exclude": [
+        "#recycle",
+        "@eaDir",
+        "#snapshot",
+        ".snapshot",
+        "lost+found"
+      ],
+      "description": "CMC department shares: Cytogenetics, Haematology, Medical Genetics, Molecular Endocrinology and Nephrology.",
+      "capacity_bytes": null
     },
     {
-      "name": "NAS-02",
+      "name": "NGS NAS",
       "path": "/mnt/nas2",
       "user_mode": "folders",
       "user_root": "/mnt/nas2",
-      "exclude": ["#recycle", "@eaDir", "#snapshot", ".snapshot", "lost+found"]
+      "exclude": [
+        "#recycle",
+        "@eaDir",
+        "#snapshot",
+        ".snapshot",
+        "lost+found"
+      ],
+      "description": "NGS server storage. Showing sample data until the collector is connected.",
+      "demo": true
     }
   ]
 }
