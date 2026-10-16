@@ -51,7 +51,7 @@ function migrate(sh) {
     rows = vals.slice(h + 1)
       .filter(r => String(get(r, ci.dep)).trim() && !/^total/i.test(String(get(r, ci.dep))))
       .filter(r => [ci.smp, ci.cop, ci.pct].some(i => i >= 0 && r[i] !== '' && r[i] !== null))
-      .map(r => [ci.date >= 0 ? dateKey(r[ci.date]) : FIRST_DATE, String(get(r, ci.dep)).trim(), clean(get(r, ci.share)).toLowerCase(),
+      .map(r => [ci.date >= 0 ? dateKey(r[ci.date]) : FIRST_DATE, String(get(r, ci.dep)).trim(), clean(get(r, ci.share)).toLowerCase().replace(/\s+/g, ''),
         num(get(r, ci.smp)), num(get(r, ci.cop)), pct(get(r, ci.pct))]);
   }
   sh.clear();
@@ -122,7 +122,7 @@ function doPost(e) {
       if (b.action === 'delete') { rewrite(sh, keep); return out({ ok: true }); }
       if (b.action !== 'save') return out({ ok: false, error: 'Unknown action' });
       const rows = (b.rows || []).filter(r => String(r.department || '').trim()).map(r =>
-        [b.date, String(r.department).trim(), clean(r.share).toLowerCase(), num(r.samples), num(r.copied_gb), pct(r.pct_copied)]);
+        [b.date, String(r.department).trim(), clean(r.share).toLowerCase().replace(/\s+/g, ''), num(r.samples), num(r.copied_gb), pct(r.pct_copied)]);
       rewrite(sh, keep.concat(rows));
       return out({ ok: true, saved: rows.length });
     } finally {

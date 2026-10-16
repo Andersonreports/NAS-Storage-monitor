@@ -232,6 +232,18 @@ tfoot td { font-weight: 700; border-bottom: 0; }
 .ed-tbl td.d { color: var(--ink-2); font-variant-numeric: tabular-nums; padding-right: 10px; }
 .ed-tbl .x { border: 0; background: none; font-size: 18px; color: var(--muted); padding: 2px 8px; }
 .ed-tbl .x:hover { color: var(--critical); }
+.addline td { padding: 6px 4px; border-bottom: 0; }
+.addbtn { font: inherit; font-weight: 700; font-size: 13px; color: var(--s1); background: none; border: 1px dashed var(--s1); border-radius: 8px; padding: 6px 14px; cursor: pointer; }
+.addbtn:hover { background: var(--sel); }
+.addrow td { padding: 4px 3px; background: var(--sel); }
+.tin { width: 100%; min-width: 60px; font: inherit; font-size: 13px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--ink); text-align: right; }
+.tin[type=text] { text-align: left; min-width: 120px; }
+.tin:focus { outline: none; border-color: var(--s1); }
+.addbar td { padding: 8px 4px; border-bottom: 0; }
+.addbar td { display: table-cell; }
+.addbar td > * { vertical-align: middle; }
+.addbar .btn { margin-left: 8px; float: right; }
+@media print { .addline, .addrow, .addbar { display: none !important; } }
 </style>
 </head>
 <body>
@@ -258,12 +270,12 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 const state = { data: null, range: 90, day: null, user: null, sort: { key: 'bytes', dir: -1 } };
 
 /* ---------- formatting ---------- */
-function fmtBytes(b, digits = 1) {
+function fmtBytes(b, digits = 2) {
   if (b == null) return '–';
   const neg = b < 0; b = Math.abs(b);
   const u = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']; let i = 0;
   while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
-  return (neg ? '-' : '') + b.toFixed(i < 3 ? 0 : digits) + ' ' + u[i];
+  return (neg ? '-' : '') + b.toFixed(i < 3 ? 0 : i === 3 ? (b >= 100 ? 0 : 1) : digits) + ' ' + u[i];
 }
 function fmtDelta(b) {
   if (b == null) return '<span class="flat">–</span>';
@@ -397,6 +409,7 @@ function sparkline(n, color) {
 const GiB = 1024 ** 3;
 const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
 const pad2 = v => String(v).padStart(2, '0');
+const normUser = v => String(v ?? '').toLowerCase().replace(/\s+/g, '');
 const isoDay = dt => `${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`;
 const isoAt = dt => `${isoDay(dt)}T${pad2(dt.getHours())}:${pad2(dt.getMinutes())}:00`;
 
@@ -463,7 +476,7 @@ function parseTransferSheet(aoa, fallback) {
     const when = map.date != null ? parseWhen(`${r[map.date] ?? ''} ${map.time != null ? r[map.time] ?? '' : ''}`.trim()) || asOf : asOf;
     const share = String(r[map.share] ?? '').trim();
     const hasShare = share && share !== '-' && !/^n\/?a$/i.test(share);
-    const row = { department: dept, share: hasShare ? share : null, checked: String(r[map.checked] ?? '').trim() };
+    const row = { department: dept, share: hasShare ? normUser(share) : null, checked: String(r[map.checked] ?? '').trim() };
     for (const k of ['samples', 'complete', 'partial', 'not_started', 'pending', 'no_files']) row[k] = map[k] != null ? cellNum(r[map[k]]) : null;
     for (const k of ['size_gb', 'copied_gb', 'used_gb', 'pending_gb']) row[k] = map[k] != null ? cellNum(r[map[k]]) : null;
     if (map.pct_copied != null) { const raw = r[map.pct_copied], v = cellNum(raw); row.pct_copied = v == null ? null : !/%/.test(String(raw)) && v <= 1 ? v * 100 : v; }
@@ -565,7 +578,7 @@ async function loadDepartments(data) {
     if (!r.ok) return;
     const rows = csvToRows(await r.text());
     if (!/username/i.test((rows[0] || [])[0] || '')) return;
-    rows.slice(1).forEach(([u, d]) => { if (u && d) data.user_departments[u.trim().toLowerCase()] = d.trim(); });
+    rows.slice(1).forEach(([u, d]) => { if (u && d) data.user_departments[normUser(u)] = d.trim(); });
   } catch (e) {}
 }
 async function applySources(data) {
@@ -771,7 +784,7 @@ function renderLanding() {
         <div class="sub">${fmtBytes(st.used, 2)} of ${fmtBytes(st.total, 2)} · <b>${fmtBytes(st.free, 2)} free</b></div>`
         : `<div class="cardstat"><div class="pct">${fmtBytes(st.used, 2)}<small>stored</small></div></div>`) + `
         ${tr ? `<div class="sub" style="margin-top:4px">Transfer: ${tr.pctCopied != null ? `<b>${tr.pctCopied.toFixed(1)}% of data copied</b> · ` : ''}${fmtGB(tr.copied_gb)} copied · ${tr.samples.toLocaleString()} samples</div>` : ''}
-        <div class="topu"><div class="l">Top users</div>${top.slice(0, 3).map(u => `<div class="tu"><span class="n" title="${esc(ulabel(u.user))}">${esc(ulabel(u.user))}</span><span class="tr"><span style="width:${u.bytes / max * 100}%"></span></span><span class="r">${fmtBytes(u.bytes, 1)}</span></div>`).join('')}</div>
+        <div class="topu"><div class="l">Top users</div>${top.slice(0, 3).map(u => `<div class="tu"><span class="n" title="${esc(ulabel(u.user))}">${esc(ulabel(u.user))}</span><span class="tr"><span style="width:${u.bytes / max * 100}%"></span></span><span class="r">${fmtBytes(u.bytes, 2)}</span></div>`).join('')}</div>
         <div class="chips">
           <span class="chip"><span class="dot" style="background:var(${s.c})"></span>${s.l}</span>
           <span class="chip">${ICONS.users}${st.userCount} users</span>
@@ -941,6 +954,8 @@ const IC2 = {
 const RANGES = [[7, 'Last 7 days'], [30, 'Last 30 days'], [90, 'Last 90 days'], [365, 'Last year'], [0, 'All time']];
 
 const fmtGB = v => v == null ? 'n/a' : Math.round(v).toLocaleString() + ' GB';
+const gbOf = b => Math.round(b / 1024 ** 3).toLocaleString() + ' GB';
+const withGB = b => b >= 1024 ** 4 ? ` (${gbOf(b)})` : '';
 const pctTxt = v => v == null ? 'n/a' : v.toFixed(1) + '%';
 const hasShare = r => !!(r.share && r.share !== '-');
 /* % copied for a row: the sheet's own "% data copied" if present, else copied / size */
@@ -965,24 +980,81 @@ function transferTotals(t) {
   tot.pctCopied = tot.size_gb ? tot.copied_gb / tot.size_gb * 100 : null;
   return tot;
 }
-function transferPanel(n, a) {
-  const t = n.transfer, T = transferTotals(t), cols = transferCols(t.rows);
-  const cell = (c, r) => { const v = c[1](r); if (c[2] === 'pct') return v == null ? 'n/a' : `${v.toFixed(1)}%`;
-    return v == null || v === '' ? (c[2] === 'l' ? '' : 'n/a') : typeof v === 'number' ? (/GB/.test(c[0]) ? fmtGB(v) : v.toLocaleString()) : esc(v); };
+/* column title -> row field, for the inline "+ Add row" inputs */
+const TKEY = { 'Department': 'department', 'Users': 'share', 'Checked?': 'checked', 'Samples': 'samples', 'Complete': 'complete', 'Partial': 'partial',
+  'Not started': 'not_started', 'No files': 'no_files', 'Size (GB)': 'size_gb', 'Copied (GB)': 'copied_gb', '% data copied': 'pct_copied' };
+function transferFoot(rows, cols) {
+  const T = transferTotals({ rows });
   const tot = { 'Department': 'Total', 'Samples': T.samples.toLocaleString(), 'Complete': T.complete == null ? '' : T.complete.toLocaleString(), 'Copied (GB)': fmtGB(T.copied_gb),
     'Size (GB)': T.size_gb == null ? '' : fmtGB(T.size_gb), '% data copied': T.pctCopied == null ? '' : T.pctCopied.toFixed(1) + '%' };
+  return `<tr>${cols.map(c => `<td${c[2] === 'l' ? ' style="text-align:left"' : ''}>${tot[c[0]] ?? ''}</td>`).join('')}</tr>`;
+}
+function transferPanel(n, a) {
+  const t = n.transfer, T = transferTotals(t), cols = transferCols(t.rows), adding = state.adding === n.name;
+  const cell = (c, r) => { const v = c[1](r); if (c[2] === 'pct') return v == null ? 'n/a' : `${v.toFixed(1)}%`;
+    return v == null || v === '' ? (c[2] === 'l' ? '' : 'n/a') : typeof v === 'number' ? (/GB/.test(c[0]) ? fmtGB(v) : v.toLocaleString()) : esc(v); };
   const strip = [['Departments', t.rows.length, `${T.rows} with a user`], ...(t.rows.some(r => r.checked) ? [['Checked', T.checked, `of ${t.rows.length}`]] : []), ['Samples', T.samples.toLocaleString(), 'departments with a user'],
     ['Data copied', fmtGB(T.copied_gb), T.size_gb != null ? 'of ' + (T.size_est ? '~' : '') + fmtGB(T.size_gb) + (T.size_est ? ' (from the % column)' : '') : 'to the NAS shares']];
-  if (T.pctCopied != null) strip.push(['% data copied', T.pctCopied.toFixed(1) + '%', T.size_gb_note || 'overall']);
+  if (T.pctCopied != null) strip.push(['% data copied', T.pctCopied.toFixed(1) + '%', 'overall']);
+  const input = c => { const k = TKEY[c[0]]; if (!k) return '<td></td>';
+    const num = !['department', 'share', 'checked'].includes(k);
+    return `<td><input class="tin" data-k="${k}" ${num ? 'type="number" min="0" step="any"' : `type="text"${k === 'share' ? ' list="trUsers"' : ''}`} placeholder="${k === 'share' ? 'user1' : k === 'pct_copied' ? '%' : ''}"></td>`; };
   return `<div class="panel big" style="margin-bottom:20px">
     <div class="phead"><div><h3>Department transfer status</h3>
       <div class="sub">As of ${fmtFull(t.day)}. From the ${esc(n.sheet_tab || n.name)} tab of the NAS STORAGE sheet.</div></div></div>
     <div class="strip">${strip.map(([l, v, s], i) => `<div class="${i === strip.length - 1 ? 'tot' : ''}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('')}</div>
-    <div class="tbl" style="max-height:none"><table class="ttable">
+    <datalist id="trUsers">${Object.entries(deptMap()).map(([u, d]) => `<option value="${esc(u)}">${esc(d)}</option>`).join('')}</datalist>
+    <div class="tbl" style="max-height:none"><table class="ttable" id="trTable">
       <thead><tr>${cols.map(c => `<th${c[2] === 'l' ? ' style="text-align:left"' : ''}>${c[0]}</th>`).join('')}</tr></thead>
-      <tbody>${t.rows.map(r => `<tr>${cols.map(c => `<td${c[2] === 'l' ? ' style="text-align:left"' : ''}>${cell(c, r)}</td>`).join('')}</tr>`).join('')}</tbody>
-      <tfoot><tr>${cols.map(c => `<td${c[2] === 'l' ? ' style="text-align:left"' : ''}>${tot[c[0]] ?? ''}</td>`).join('')}</tr></tfoot>
+      <tbody>${t.rows.map(r => `<tr>${cols.map(c => `<td${c[2] === 'l' ? ' style="text-align:left"' : ''}>${cell(c, r)}</td>`).join('')}</tr>`).join('')}
+        ${adding ? `<tr class="addrow">${cols.map(input).join('')}</tr>
+          <tr class="addbar"><td colspan="${cols.length}"><span class="sub">New row for ${fmtFull(t.day)}. It is saved to the ${esc(n.sheet_tab)} tab with the other rows of that date.</span>
+            <span class="sp"></span><button class="btn small" id="trCancel">Cancel</button><button class="btn small primary" id="trSave">Save row</button></td></tr>`
+          : `<tr class="addline"><td colspan="${cols.length}"><button class="addbtn" id="trAdd" title="Add a department row">+ Add row</button></td></tr>`}</tbody>
+      <tfoot id="trFoot">${transferFoot(t.rows, cols)}</tfoot>
     </table></div></div>`;
+}
+/* wires the "+ Add row" controls after the module page is drawn */
+function bindTransferAdd(n) {
+  if (!n.transfer) return;
+  const t = n.transfer, cols = transferCols(t.rows);
+  const add = $('#trAdd'); if (add) add.onclick = () => { state.adding = n.name; render(); setTimeout(() => { const f = document.querySelector('.addrow input'); f && f.focus(); }, 0); };
+  if (state.adding !== n.name) return;
+  const read = () => { const r = {}; document.querySelectorAll('.addrow input').forEach(i => { r[i.dataset.k] = i.value.trim(); }); return r; };
+  const asRow = v => finishRow({ department: v.department || '', share: v.share ? normUser(v.share) : null, checked: v.checked || '',
+    ...Object.fromEntries(['samples', 'complete', 'partial', 'not_started', 'no_files', 'size_gb', 'copied_gb', 'pct_copied'].map(k => [k, v[k] === undefined || v[k] === '' ? null : +v[k]])) });
+  document.querySelectorAll('.addrow input').forEach(i => i.oninput = () => {
+    const v = read();
+    if (i.dataset.k === 'share') { const d = deptMap()[v.share.toLowerCase()], dep = document.querySelector('.addrow [data-k=department]'); if (d && dep && !dep.value) dep.value = d; }
+    $('#trFoot').innerHTML = transferFoot([...t.rows, asRow(read())], cols);   // total follows what is typed
+  });
+  $('#trCancel').onclick = () => { state.adding = null; render(); };
+  $('#trSave').onclick = async () => {
+    const v = read();
+    if (!v.department) return alert('Type the department.');
+    if (v.pct_copied && (+v.pct_copied < 0 || +v.pct_copied > 100)) return alert('% data copied must be between 0 and 100.');
+    const btn = $('#trSave'); btn.disabled = true; btn.textContent = 'Saving…';
+    const newRow = asRow(v), rows = [...t.rows, newRow];
+    const payload = rows.map(r => ({ department: r.department, share: r.share || '', checked: r.checked || '', samples: r.samples ?? '', copied_gb: r.copied_gb ?? '',
+      pct_copied: r.pct_copied != null ? +r.pct_copied.toFixed(2) : '' }));
+    try {
+      await sendToSheet(n, { action: 'save', date: t.day, rows: payload });
+      applySnapshot(n, { day: t.day, scanned_at: n.scanned_at || `${t.day}T00:00:00`, rows });
+      state.adding = null; render(); toast(`Row added for ${v.department} (${fmtFull(t.day)})`);
+    } catch (err) { alert('Not saved: ' + err.message); btn.disabled = false; btn.textContent = 'Save row'; }
+  };
+}
+/* POST to the Apps Script; asks once for the URL (until it is in config.json) and the edit key */
+async function sendToSheet(n, body) {
+  let url = scriptUrl();
+  if (!url) { url = (prompt('Apps Script web app URL (ends in /exec):', '') || '').trim(); if (!url) throw new Error('No Apps Script URL.'); LS.set('nas-script-url', url); }
+  let key = LS.get('nas-edit-key', '');
+  if (!key) { key = prompt('Edit key:', '') || ''; if (!key) throw new Error('No edit key.'); }
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ ...body, key, tab: n.sheet_tab }) });
+  const res = await r.json().catch(() => ({ ok: false, error: 'Unexpected reply from the Apps Script (HTTP ' + r.status + ')' }));
+  if (!res.ok) { if (/key/i.test(res.error || '')) LS.del('nas-edit-key'); throw new Error(res.error || 'Save failed'); }
+  LS.set('nas-edit-key', key);
+  return res;
 }
 function gauge(pct, color) {
   const r = 26, c = Math.PI * r, f = Math.min(100, pct) / 100;
@@ -1022,7 +1094,7 @@ function renderModule(name) {
   $('#app').innerHTML = head + `
     <div class="kpis4">
       <div class="panel kpi"><div class="bigico t-blue">${IC2.db}</div><div><div class="l">Usable capacity</div><div class="v">${st.hasCap ? fmtBytes(st.total, 2) : 'Not set'}</div><div class="s">${st.hasCap ? (n.raw_capacity ? `Total ${fmtBytes(n.raw_capacity, 0)}` : esc(n.path)) : 'add capacity_bytes in config.json'}</div></div></div>
-      <div class="panel kpi"><div class="bigico t-red">${IC2.trend}</div><div><div class="l">Used</div><div class="v">${fmtBytes(st.used, 2)}</div><div class="s" style="font-size:12px">${sinceLast == null ? 'first scan' : fmtDelta(sinceLast) + ' since last scan'}</div></div></div>
+      <div class="panel kpi"><div class="bigico t-red">${IC2.trend}</div><div><div class="l">Used</div><div class="v">${fmtBytes(st.used, 2)}</div><div class="s" style="font-size:12px">${gbOf(st.used)}${sinceLast == null ? '' : ' · ' + fmtDelta(sinceLast) + ' since last update'}</div></div></div>
       <div class="panel kpi"><div class="bigico t-green">${IC2.dbFull}</div><div><div class="l">Available</div><div class="v">${st.hasCap ? fmtBytes(st.free, 2) : '–'}</div><div class="s">as of ${fmtFull(st.day)}</div></div></div>
       <div class="panel kpi"><div class="bigico t-gray">${gauge(st.pct ?? 0, s.c)}</div><div><div class="l">Usage</div><div class="v">${st.hasCap ? Math.round(st.pct) + '%' : '–'}</div>
         <div class="s"><span class="status"><span class="dot" style="background:var(${s.c})"></span>${s.l}</span>${st.hasCap ? ` · ${fmtBytes(st.used)} / ${fmtBytes(st.total)}` : ''}</div></div></div>
@@ -1063,6 +1135,7 @@ function renderModule(name) {
     </div>
     <footer>NAS Storage Monitor · internal storage dashboard${n.scanned_at ? ' · last scan ' + new Date(n.scanned_at).toLocaleString() : ''}</footer>`;
   bindHead(n);
+  bindTransferAdd(n);
 
   const rng = rangeIdx(n);
   if (multi) {
@@ -1159,11 +1232,11 @@ function renderUsers(n, a) {
   const bySize = [...list].sort((p, q) => q.bytes - p.bytes), max = Math.max(1, ...list.map(u => u.bytes));
   $('#ubSub').textContent = `${fmtFull(state.day)} · ${list.length} users · ${fmtBytes(total, 2)}`;
   $('#ubody').innerHTML = `
-    <div class="strip">${bySize.slice(0, 4).map(u => `<div><div class="l" title="${esc(ulabel(u.user))}">${esc(ulabel(u.user))}</div><div class="v">${fmtBytes(u.bytes, 1)}</div><div class="s">${total ? (u.bytes / total * 100).toFixed(1) : 0}%</div></div>`).join('')}
-      <div class="tot"><div class="l">Total</div><div class="v">${fmtBytes(total, 1)}</div><div class="s">${files ? files.toLocaleString() + ' files' : list.length + ' shares'}</div></div></div>
+    <div class="strip">${bySize.slice(0, 4).map(u => `<div><div class="l" title="${esc(ulabel(u.user))}">${esc(ulabel(u.user))}</div><div class="v">${fmtBytes(u.bytes, 2)}</div><div class="s">${gbOf(u.bytes)} · ${total ? (u.bytes / total * 100).toFixed(1) : 0}%</div></div>`).join('')}
+      <div class="tot"><div class="l">Total</div><div class="v">${fmtBytes(total, 2)}</div><div class="s">${gbOf(total)} · ${list.length} users</div></div></div>
     <div class="hbars">${bySize.map(u => `<div class="hbar ${u.user === state.user ? 'sel' : ''}" data-u="${esc(u.user)}" title="Show ${esc(ulabel(u.user))} history">
       <div class="n" title="${esc(ulabel(u.user))}">${esc(ulabel(u.user))}</div><div class="tr"><div style="width:${Math.max(0.5, u.bytes / max * 100)}%"></div></div>
-      <div class="r">${fmtBytes(u.bytes, 2)} · ${total ? (u.bytes / total * 100).toFixed(1) : 0}%</div></div>`).join('') || '<div class="empty">No user data for this day</div>'}</div>`;
+      <div class="r">${fmtBytes(u.bytes, 2)}${withGB(u.bytes)} · ${total ? (u.bytes / total * 100).toFixed(1) : 0}%</div></div>`).join('') || '<div class="empty">No user data for this day</div>'}</div>`;
 
   const { key, dir } = state.sort;
   list.sort((p, q) => { const av = p[key] ?? -Infinity, bv = q[key] ?? -Infinity; return (typeof av === 'string' ? av.localeCompare(bv) : av - bv) * dir; });
@@ -1212,7 +1285,7 @@ function render() {
   const m = location.hash.match(/^#\/nas\/(.+)$/);
   if (m) renderModule(decodeURIComponent(m[1])); else renderLanding();
 }
-addEventListener('hashchange', () => { state.user = null; state.day = null; render(); scrollTo(0, 0); });
+addEventListener('hashchange', () => { state.user = null; state.day = null; state.adding = null; render(); scrollTo(0, 0); });
 let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(render, 150); });
 
 async function load() {
