@@ -98,6 +98,7 @@ def _nas_data(conn, nas, since):
         "description": nas.get("description", ""),
         "demo": bool(nas.get("demo")),
         "capacity": cap,
+        "raw_capacity": nas.get("raw_capacity_bytes"),
         "sheet_url": nas.get("sheet_url"),
         "days": day_list,
         "total": total,

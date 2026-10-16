@@ -22,7 +22,9 @@
         "lost+found"
       ],
       "description": "CMC department shares: Cytogenetics, Haematology, Medical Genetics, Molecular Endocrinology and Nephrology.",
-      "capacity_bytes": null
+      "capacity_bytes": 142936511610880,
+      "raw_capacity_bytes": 175921860444160,
+      "sheet_url": "https://docs.google.com/spreadsheets/d/1m4-yM4mn1kzAbfCiYznvXrwgx8yUc-Wm9gTus6LHDd8/edit#gid=1752430691"
     },
     {
       "name": "NGS NAS",
@@ -36,8 +38,11 @@
         ".snapshot",
         "lost+found"
       ],
-      "description": "NGS server storage. Showing sample data until the collector is connected.",
-      "demo": true
+      "description": "NGS server storage. Sample data is shown until the NGS tab of the live sheet is filled in.",
+      "demo": true,
+      "capacity_bytes": 142936511610880,
+      "raw_capacity_bytes": 175921860444160,
+      "sheet_url": "https://docs.google.com/spreadsheets/d/1m4-yM4mn1kzAbfCiYznvXrwgx8yUc-Wm9gTus6LHDd8/edit#gid=0"
     }
   ]
 }

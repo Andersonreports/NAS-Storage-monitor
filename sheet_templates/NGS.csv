@@ -1,0 +1,3 @@
+NGS Department Transfer Status
+As of DD-Mon-YYYY HH:MM
+Department,Dest. share,Checked?,Samples,Complete,Partial,Not started,Pending samples,No files in report,% samples complete,Size (GB),Copied (GB),Pending (GB),% data copied

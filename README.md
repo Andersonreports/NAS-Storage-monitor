@@ -19,7 +19,11 @@ Live page: https://andersonreports.github.io/NAS-Storage-monitor/
 
 Open a NAS page on the dashboard and use the buttons at the top right.
 
-**Live sheet (recommended, everyone sees it).** Keep the transfer status in a Google Sheet with the same
+**Live sheet (recommended, everyone sees it).** Connected sheet: [NAS STORAGE](https://docs.google.com/spreadsheets/d/1m4-yM4mn1kzAbfCiYznvXrwgx8yUc-Wm9gTus6LHDd8/edit),
+tab **CMC** → CMC NAS, tab **NGS** → NGS NAS. Starter contents for each tab are in `sheet_templates/`.
+Don't delete or recreate the tabs: the dashboard finds them by tab ID.
+
+ Keep the transfer status in a Google Sheet with the same
 columns as the report (`Department`, `Dest. share`, `Checked?`, `Samples`, … `Size (GB)`, `Copied (GB)`, `Pending (GB)`).
 - Share it as *Anyone with the link can view*, or use *File → Share → Publish to web → CSV*.
 - Put the link in `config.json` as `"sheet_url"` for that NAS. You can edit the file on github.com with the pencil icon.

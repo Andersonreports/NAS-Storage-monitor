@@ -399,6 +399,7 @@ const COLS = [
   ['pending_gb', h => /pending/.test(h) && /gb/.test(h)],
   ['size_gb', h => /^size/.test(h)],
   ['copied_gb', h => /^copied/.test(h)],
+  ['used_gb', h => /^used/.test(h)],
   ['samples', h => /^samples$|^total samples$/.test(h)],
   ['complete', h => /^complete/.test(h)],
   ['partial', h => /^partial/.test(h)],
@@ -413,7 +414,7 @@ function parseTransferSheet(aoa, fallback) {
   if (h < 0) throw new Error('No "Department" header row found in the sheet.');
   const map = {};
   aoa[h].forEach((c, i) => { const k = COLS.find(([key, t]) => !(key in map) && t(norm(c))); if (k) map[k[0]] = i; });
-  if (map.copied_gb == null && map.size_gb == null) throw new Error('Could not find the "Size (GB)" / "Copied (GB)" columns.');
+  if (map.copied_gb == null && map.used_gb == null) throw new Error('Could not find a "Copied (GB)" or "Used (GB)" column.');
   let asOf = null;
   for (const r of aoa.slice(0, h)) for (const c of r) { const t = /as of/i.test(String(c)) && parseWhen(c); if (t) { asOf = t; break; } }
   asOf = asOf || fallback || new Date();
@@ -426,7 +427,7 @@ function parseTransferSheet(aoa, fallback) {
     const hasShare = share && share !== '-' && !/^n\/?a$/i.test(share);
     const row = { department: dept, share: hasShare ? share : null, checked: String(r[map.checked] ?? '').trim() };
     for (const k of ['samples', 'complete', 'partial', 'not_started', 'pending', 'no_files']) row[k] = map[k] != null ? cellNum(r[map[k]]) : null;
-    for (const k of ['size_gb', 'copied_gb', 'pending_gb']) row[k] = map[k] != null ? cellNum(r[map[k]]) : null;
+    for (const k of ['size_gb', 'copied_gb', 'used_gb', 'pending_gb']) row[k] = map[k] != null ? cellNum(r[map[k]]) : null;
     // the page is public: "Haematology - <staff name>" becomes "Haematology - <share>"
     const m = hasShare && dept.match(/^(.*?)\s+[-–]\s+(.+)$/);
     if (m && m[2].toLowerCase() !== share.toLowerCase()) row.department = `${m[1]} - ${share}`;
@@ -448,11 +449,12 @@ function applySnapshot(n, snap) {
     for (const arr of [n.total, n.used, n.free]) arr.splice(k, 0, null);
     for (const u of Object.values(n.users)) { u.bytes.splice(k, 0, null); u.files.splice(k, 0, null); }
   }
-  const label = r => r.department.toLowerCase().includes(r.share.toLowerCase()) ? r.department : `${r.department} (${r.share})`;
+  const label = r => !r.share || r.department.toLowerCase().includes(r.share.toLowerCase()) ? r.department : `${r.department} (${r.share})`;
+  const gb = r => r.copied_gb ?? r.used_gb;
   let used = 0;
   for (const u of Object.values(n.users)) u.bytes[k] = null;
-  for (const r of snap.rows.filter(r => r.share && r.copied_gb != null)) {
-    const name = label(r), b = Math.round(r.copied_gb * GiB);
+  for (const r of snap.rows.filter(r => gb(r) != null && (r.share || r.used_gb != null))) {
+    const name = label(r), b = Math.round(gb(r) * GiB);
     if (!n.users[name]) n.users[name] = { bytes: n.days.map(() => null), files: n.days.map(() => null) };
     n.users[name].bytes[k] = b; n.users[name].files[k] = null;
     used += b;
@@ -460,7 +462,7 @@ function applySnapshot(n, snap) {
   n.used[k] = used;
   n.total[k] = n.capacity ?? n.total[k] ?? null;
   n.free[k] = n.total[k] != null ? n.total[k] - used : null;
-  if (!n.transfer || snap.day >= n.transfer.day) n.transfer = { day: snap.day, rows: snap.rows };
+  if (snap.rows.some(r => r.copied_gb != null) && (!n.transfer || snap.day >= n.transfer.day)) n.transfer = { day: snap.day, rows: snap.rows };
   if (!n.scanned_at || snap.scanned_at > n.scanned_at) n.scanned_at = snap.scanned_at;
 }
 
@@ -491,7 +493,7 @@ function sheetCsvUrl(url) {
   if (/output=csv|format=csv|tqx=out:csv/.test(url)) return url;
   const id = url.match(/\/spreadsheets\/d\/(?:e\/)?([\w-]+)/), gid = url.match(/[#&?]gid=(\d+)/);
   if (/\/d\/e\//.test(url)) return url.replace(/\/pub(html)?.*$/, '/pub?output=csv' + (gid ? '&gid=' + gid[1] : ''));
-  if (id) return `https://docs.google.com/spreadsheets/d/${id[1]}/gviz/tq?tqx=out:csv${gid ? '&gid=' + gid[1] : ''}`;
+  if (id) return `https://docs.google.com/spreadsheets/d/${id[1]}/export?format=csv&gid=${gid ? gid[1] : 0}`;
   return url;
 }
 async function readFileRows(file) {
@@ -525,9 +527,10 @@ async function applySources(data) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const text = await r.text();
         if (/^\s*</.test(text)) throw new Error('the sheet is not shared publicly');
+        if (!text.replace(/[\s,"]/g, '')) { n.src.sheet.empty = true; continue; }
         parseTransferSheet(csvToRows(text), null).forEach(s => applySnapshot(n, s));
         n.src.sheet.ok = true;
-      } catch (e) { n.src.sheet.error = e.message; }
+      } catch (e) { if (/no department rows/.test(e.message)) n.src.sheet.empty = true; else n.src.sheet.error = e.message; }
     }
     const ups = LS.get(uploadsKey(n.name), []);
     ups.forEach(s => applySnapshot(n, s));
@@ -555,6 +558,7 @@ function sourceNote(n) {
   const out = [];
   const sh = n.src && n.src.sheet;
   if (sh && sh.ok) out.push(`\u2139 Live from Google Sheet${sh.shared ? '' : ' (connected in this browser only)'} · read ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`);
+  if (sh && sh.empty) out.push(`\u2139 The live sheet tab for ${esc(n.name)} is connected but still empty. Figures appear here as soon as the report table is pasted into it.`);
   if (sh && sh.error) out.push(`Could not read the live sheet: ${esc(sh.error)}. In Google Sheets use Share → "Anyone with the link can view", or File → Share → Publish to web → CSV.`);
   if (n.src && n.src.uploads) out.push(`Includes ${n.src.uploads} uploaded report${n.src.uploads > 1 ? 's' : ''} saved <b>in this browser only</b>. Other people won't see ${n.src.uploads > 1 ? 'them' : 'it'}. <a href="#" data-clear="${esc(n.name)}">Remove uploads</a>`);
   return out;
@@ -563,11 +567,11 @@ function sourceNote(n) {
 /* ---------- views ---------- */
 function banner(n) {
   const msgs = [];
-  if (n && n.demo) msgs.push(`<b>${esc(n.name)}</b> is showing <b>sample data</b>. Real figures appear once its collector is connected.`);
+  if (n && n.demo) msgs.push(`<b>${esc(n.name)}</b> is showing <b>sample data</b>. Real figures appear once its tab in the live sheet is filled in.`);
   if (n && n.src) msgs.push(...sourceNote(n));
   if (n && !n.demo && n.transfer && n.days.length && n.days[n.days.length - 1] === n.transfer.day && n.total[n.total.length - 1] == null)
     msgs.push(`Figures come from the department transfer report of ${fmtFull(n.transfer.day)}. Disk capacity is not set yet, so % used and free space are not shown.`);
-  if (!n) { const demo = state.data.nas.filter(x => x.demo).map(x => esc(x.name)); if (demo.length) msgs.push(`<b>${demo.join(', ')}</b> ${demo.length > 1 ? 'are' : 'is'} showing sample data until ${demo.length > 1 ? 'their collectors are' : 'its collector is'} connected.`); }
+  if (!n) { const demo = state.data.nas.filter(x => x.demo).map(x => esc(x.name)); if (demo.length) msgs.push(`<b>${demo.join(', ')}</b> ${demo.length > 1 ? 'are' : 'is'} showing sample data until ${demo.length > 1 ? 'their tabs' : 'its tab'} in the live sheet ${demo.length > 1 ? 'are' : 'is'} filled in.`); }
   return msgs.map(m => m.startsWith('\u2139 ') ? `<div class="banner info">${m.slice(2)}</div>` : `<div class="banner">${m}</div>`).join('');
 }
 
@@ -699,7 +703,7 @@ function renderModule(name) {
   const daysLeft = st.hasCap && st.rate > 0 ? Math.floor(st.free / st.rate) : null;
   $('#app').innerHTML = head + `
     <div class="kpis4">
-      <div class="panel kpi"><div class="bigico t-blue">${IC2.db}</div><div><div class="l">Total capacity</div><div class="v">${st.hasCap ? fmtBytes(st.total, 2) : 'Not set'}</div><div class="s">${st.hasCap ? esc(n.path) : 'add capacity_bytes in config.json'}</div></div></div>
+      <div class="panel kpi"><div class="bigico t-blue">${IC2.db}</div><div><div class="l">Usable capacity</div><div class="v">${st.hasCap ? fmtBytes(st.total, 2) : 'Not set'}</div><div class="s">${st.hasCap ? (n.raw_capacity ? `usable · ${fmtBytes(n.raw_capacity, 0)} raw` : esc(n.path)) : 'add capacity_bytes in config.json'}</div></div></div>
       <div class="panel kpi"><div class="bigico t-red">${IC2.trend}</div><div><div class="l">Used</div><div class="v">${fmtBytes(st.used, 2)}</div><div class="s" style="font-size:12px">${sinceLast == null ? 'first scan' : fmtDelta(sinceLast) + ' since last scan'}</div></div></div>
       <div class="panel kpi"><div class="bigico t-green">${IC2.dbFull}</div><div><div class="l">Available</div><div class="v">${st.hasCap ? fmtBytes(st.free, 2) : '–'}</div><div class="s">as of ${fmtFull(st.day)}</div></div></div>
       <div class="panel kpi"><div class="bigico t-gray">${gauge(st.pct ?? 0, s.c)}</div><div><div class="l">Usage</div><div class="v">${st.hasCap ? Math.round(st.pct) + '%' : '–'}</div>
