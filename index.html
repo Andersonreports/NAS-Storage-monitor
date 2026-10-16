@@ -1009,7 +1009,7 @@ function renderModule(name) {
   const daysLeft = st.hasCap && st.rate > 0 ? Math.floor(st.free / st.rate) : null;
   $('#app').innerHTML = head + `
     <div class="kpis4">
-      <div class="panel kpi"><div class="bigico t-blue">${IC2.db}</div><div><div class="l">Usable capacity</div><div class="v">${st.hasCap ? fmtBytes(st.total, 2) : 'Not set'}</div><div class="s">${st.hasCap ? (n.raw_capacity ? `usable · ${fmtBytes(n.raw_capacity, 0)} raw` : esc(n.path)) : 'add capacity_bytes in config.json'}</div></div></div>
+      <div class="panel kpi"><div class="bigico t-blue">${IC2.db}</div><div><div class="l">Usable capacity</div><div class="v">${st.hasCap ? fmtBytes(st.total, 2) : 'Not set'}</div><div class="s">${st.hasCap ? (n.raw_capacity ? `Total ${fmtBytes(n.raw_capacity, 0)}` : esc(n.path)) : 'add capacity_bytes in config.json'}</div></div></div>
       <div class="panel kpi"><div class="bigico t-red">${IC2.trend}</div><div><div class="l">Used</div><div class="v">${fmtBytes(st.used, 2)}</div><div class="s" style="font-size:12px">${sinceLast == null ? 'first scan' : fmtDelta(sinceLast) + ' since last scan'}</div></div></div>
       <div class="panel kpi"><div class="bigico t-green">${IC2.dbFull}</div><div><div class="l">Available</div><div class="v">${st.hasCap ? fmtBytes(st.free, 2) : '–'}</div><div class="s">as of ${fmtFull(st.day)}</div></div></div>
       <div class="panel kpi"><div class="bigico t-gray">${gauge(st.pct ?? 0, s.c)}</div><div><div class="l">Usage</div><div class="v">${st.hasCap ? Math.round(st.pct) + '%' : '–'}</div>
