@@ -44,5 +44,18 @@
       "raw_capacity_bytes": 175921860444160,
       "sheet_url": "https://docs.google.com/spreadsheets/d/1m4-yM4mn1kzAbfCiYznvXrwgx8yUc-Wm9gTus6LHDd8/edit#gid=0"
     }
-  ]
+  ],
+  "users": {
+    "user1": "Haematology",
+    "user2": "Haematology",
+    "user3": "Haematology",
+    "user4": "Nephrology",
+    "user5": "Cytogenetics",
+    "user6": "Medical Genetics",
+    "user7": "Molecular Endocrinology",
+    "user8": "Molecular Pathology",
+    "user9": "Neurophysiology",
+    "germline": "Germline",
+    "somatic": "Somatic"
+  }
 }

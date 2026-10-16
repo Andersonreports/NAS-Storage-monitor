@@ -4,7 +4,7 @@
   python3 import_transfer.py --nas "CMC NAS" --at "2026-10-07 06:41" imports/cmc_transfer_2026-10-07.csv
 
 Columns: department,share,checked,samples,complete,partial,not_started,pending,no_files,size_gb,copied_gb,pending_gb
-Each department with a destination share also becomes a "user" row (its copied GB),
+Each department with a destination share also becomes a "user" row keyed by its share username (its copied GB),
 so it shows in the user-wise breakdown and its day-wise history.
 """
 import argparse
@@ -52,8 +52,8 @@ def main():
         # only write usage rows if no real scan exists for that day
         scanned = conn.execute("SELECT scan_secs FROM nas_snapshot WHERE day=? AND nas=?", (day, args.nas)).fetchone()
         if not scanned or scanned["scan_secs"] is None:
-            users = [(f"{r['department'].strip()} ({r['share'].strip()})" if "user" not in r["department"] else r["department"].strip(),
-                      int(num(r["copied_gb"], float) * GB))
+            # usage is keyed by the share username (user1 ...), the same key the collector uses for folders
+            users = [(r["share"].strip().lower(), int(num(r["copied_gb"], float) * GB))
                      for r in rows if (r.get("share") or "").strip() and num(r.get("copied_gb"), float) is not None]
             conn.execute("DELETE FROM user_usage WHERE day=? AND nas=?", (day, args.nas))
             conn.executemany("INSERT INTO user_usage (day, nas, user, bytes, files) VALUES (?,?,?,?,NULL)",

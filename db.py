@@ -129,5 +129,6 @@ def build_data(cfg, days=400):
     return {
         "generated_at": dt.datetime.now().isoformat(timespec="seconds"),
         "thresholds": cfg.get("thresholds", {"warning": 80, "critical": 90}),
+        "user_departments": {k.lower(): v for k, v in cfg.get("users", {}).items()},
         "nas": out,
     }
